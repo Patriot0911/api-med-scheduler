@@ -32,7 +32,7 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(JwtRefreshGuard)
   async refresh(@Req() request): Promise<ITokenModel> {
-    const { user } = request.body;
+    const { user } = request;
     return await this.authService.refresh(user);
   }
 
@@ -41,7 +41,6 @@ export class AuthController {
   @UseGuards(JwtAccessGuard)
   async logout(@Req() request): Promise<TLogoutResponse> {
     const { user } = request;
-
     return await this.authService.logout(user);
   }
 }

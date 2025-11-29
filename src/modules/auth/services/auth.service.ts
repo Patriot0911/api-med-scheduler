@@ -29,11 +29,16 @@ export class AuthService {
 
     const encryptedPassword = await this.passwordService.hash(password);
 
-    const createdUser = await this.userService.createUser(
+    const { id, } = await this.userService.createUser(
       email,
       encryptedPassword,
       fullName,
     );
+
+    const createdUser = await this.userService.getUserById(id);
+    if (!createdUser) {
+      throw new BadRequestException('Error creating user');
+    }
 
     const sessionData = await this.sessionService.initSession(createdUser);
 

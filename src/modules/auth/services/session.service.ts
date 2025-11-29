@@ -12,7 +12,6 @@ import { TokenType } from "../models/token-type.enum";
 import { IRefreshTokenPayload } from "../models/refresh-token-payload.model";
 import dayjs from "dayjs";
 import { UserService } from "src/modules/users/services/user.service";
-import { TLogoutResponse } from "../models/logout.response";
 
 @Injectable()
 export class SessionService {
