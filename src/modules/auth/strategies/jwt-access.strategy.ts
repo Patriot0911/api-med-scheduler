@@ -15,7 +15,6 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access',)
     private readonly sessionService: SessionService,
     private readonly configService: ConfigService,
   ) {
-    console.log(configService.get('auth.jwt.secret'));
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,

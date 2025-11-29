@@ -59,7 +59,7 @@ export class AuthService {
     const { email, password, } = data;
 
     const existingUser = await this.userService.getUserByEmail(email);
-    if (!existingUser) {
+    if (!existingUser || !(await this.passwordService.verify(existingUser.password, password))) {
       throw new BadRequestException('Invalid credentials');
     }
 

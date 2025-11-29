@@ -118,14 +118,16 @@ export class SessionService {
   }
   async verifyAccess(payload: IAccessTokenPayload): Promise<boolean> {
     if (payload.use !== TokenType.Access) return false;
+
     const session = await this.sessionRepository.findOne({
-      where: {
-        gid: payload.gid,
-      },
+      where: { gid: payload.gid },
     });
     if (!session) return false;
-    const ttl = dayjs().diff(session.updatedAt, 'seconds');
-    return ttl < this.configService.get('auth.jwt.accessTtl');
+
+    const accessTtl = Number(this.configService.get('auth.jwt.accessTtl'));
+    const elapsed = dayjs().diff(session.updatedAt, 'seconds');
+
+    return elapsed < accessTtl;
   }
 
   async signTokenPayload(payload: any, type: 'refresh' | 'access'): Promise<string> {
