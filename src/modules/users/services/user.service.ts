@@ -15,10 +15,13 @@ export class UserService {
       email,
       password,
       fullName,
-    });
+    },);
     return await this.userRepository.save(newUser);
   }
 
+  async getUserById(id: string): Promise<UserEntity | null> {
+    return await this.userRepository.findOne({ where: { id } });
+  }
   async getUserByEmail(email: string): Promise<UserEntity | null> {
     return await this.userRepository.findOne({ where: { email } });
   }
