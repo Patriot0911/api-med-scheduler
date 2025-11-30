@@ -9,9 +9,8 @@ import { ITokenModel } from "../models/token.model";
 import { JwtRefreshGuard } from "../guards/jwt-refresh.guard";
 import { TLogoutResponse } from "../models/logout.response";
 import { JwtAccessGuard } from "../guards/access-refresh.guard";
-import { PermissionsGuard } from "../guards/permission.guard";
-import { Permissions } from "../decorator/roles.decorator";
-import { Permission } from "src/modules/roles/models/permission.enum";
+import { IAccessTokenPayload } from "../models/access-token-payload.model";
+import { TGetMeResponse } from "../models/get-me.response";
 
 @ApiTags('Auth')
 @Controller('api/auth')
@@ -49,10 +48,9 @@ export class AuthController {
 
   @Get('me')
   @ApiBearerAuth()
-  @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.CHANGE_SCHEDULE)
-  async me(@Req() request): Promise<TLogoutResponse> {
-    const { user } = request;
-    return await this.authService.logout(user);
+  @UseGuards(JwtAccessGuard)
+  async me(@Req() request): Promise<TGetMeResponse> {
+    const { sub, } = <IAccessTokenPayload> request.user;
+    return await this.authService.getMe(sub);
   }
 }

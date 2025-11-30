@@ -6,12 +6,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { RolesModule } from './modules/roles/roles.module';
+import { DictionariesModule } from './modules/dictionaries/dictionaries.module';
 
 @Module({
   imports: [
     AuthModule,
     RolesModule,
     UsersModule,
+    DictionariesModule,
     StudentGroupsModule,
     ConfigModule.forRoot({
       isGlobal: true,

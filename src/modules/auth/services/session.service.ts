@@ -11,14 +11,14 @@ import { IAccessTokenPayload } from "../models/access-token-payload.model";
 import { TokenType } from "../models/token-type.enum";
 import { IRefreshTokenPayload } from "../models/refresh-token-payload.model";
 import dayjs from "dayjs";
-import { UserService } from "src/modules/users/services/user.service";
+import { UsersService } from "src/modules/users/services/users.service";
 
 @Injectable()
 export class SessionService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-    private readonly userService: UserService,
+    private readonly userService: UsersService,
     @InjectRepository(SessionEntity)
     private sessionRepository: Repository<SessionEntity>,
   ) {}
