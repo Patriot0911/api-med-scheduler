@@ -6,7 +6,7 @@ export class EditSemesterRequestDto implements ICreateSemesterModel {
   @ApiProperty({ example: 'Перший навчальний семестр 2025-2026' })
   @IsString()
   @MinLength(3)
-  description: string;
+  name: string;
 
   @ApiProperty({ example: Date(), })
   @IsDate()

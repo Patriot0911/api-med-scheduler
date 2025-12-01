@@ -1,5 +1,5 @@
 export interface IEditSemesterModel {
-  description: string;
+  name: string;
   dateFrom: Date;
   dateTo: Date;
 };

@@ -22,11 +22,19 @@ export class DictionariesController {
   async getRolesDictionary(): Promise<any> {
     return await this.rolesService.getRolesDictionary();
   }
+
   @Get('permissions')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
   @Permissions(Permission.VIEW_ROLES, Permission.ADMIN)
   getPermissionsDictionary(): any {
+    return this.dictionariesService.getPermissions();
+  }
+
+  @Get('semesters')
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard, PermissionsGuard)
+  getSemestersDictionary(): any {
     return this.dictionariesService.getPermissions();
   }
 }

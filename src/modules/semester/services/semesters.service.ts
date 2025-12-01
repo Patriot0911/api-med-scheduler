@@ -9,6 +9,7 @@ import { ISemesterListItemModel } from '../models/semester-list-item.model';
 import { SemestersMapper } from '../mappers/semesters.mapper';
 import { ISemesterItemModel } from '../models/semester-item.model';
 import { IGenericListPayloadResponse } from 'src/shared/models/generic-list-payload.response';
+import { ISemesterDictionaryItem } from '../models/semester-dictionary-item.model';
 
 @Injectable()
 export class SemestersService {
@@ -18,8 +19,17 @@ export class SemestersService {
     private semestersRepository: Repository<SemesterEntity>,
   ) {}
 
+  async getSemesterDictionary(): Promise<ISemesterDictionaryItem[]> {
+    const semesters = await this.semestersRepository.find({
+      select: ['id', 'name',]
+    });
+    return semesters.map(
+      (s) => this.semestersMapper.entityToDictionaryItem(s)
+    );
+  }
+
   async getAll(params: IGetSemestersFiltersModel): Promise<IGenericListPayloadResponse<ISemesterListItemModel>> {
-    const { page, pageSize, dateFrom, dateTo, } = params;
+    const { page, pageSize, dateFrom, dateTo, search, } = params;
     const semQb = this.semestersRepository
       .createQueryBuilder('sem')
       .skip((page - 1) * pageSize)
@@ -30,6 +40,9 @@ export class SemestersService {
     }
     if (dateTo) {
       semQb.andWhere('sem.dateTo <= :dateTo', { dateTo, });
+    }
+    if (search) {
+      semQb.andWhere('sem.name LIKE :search', { search, });
     }
 
     const [semestersData, total] = await semQb.getManyAndCount();
@@ -51,7 +64,7 @@ export class SemestersService {
 
   async createSemester(data: ICreateSemesterModel): Promise<ISemesterItemModel> {
     const newSemester = this.semestersRepository.create({
-      description: data.description,
+      name: data.name,
       dateFrom: data.dateFrom,
       dateTo: data.dateTo
     },);
@@ -65,7 +78,7 @@ export class SemestersService {
       {
         dateFrom: data.dateFrom,
         dateTo: data.dateTo,
-        description: data.description,
+        name: data.name,
       },
     );
     return !!updatedSemester.affected;

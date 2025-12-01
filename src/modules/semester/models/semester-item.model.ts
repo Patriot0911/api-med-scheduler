@@ -1,6 +1,6 @@
 export interface ISemesterItemModel {
   id: string;
-  description: string;
+  name: string;
   dateTo: Date;
   dateFrom: Date;
 };

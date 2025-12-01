@@ -6,7 +6,7 @@ export class SemesterEntity {
   id: string;
 
   @Column()
-  description: string;
+  name: string;
 
   @Column()
   dateFrom: Date;
