@@ -4,7 +4,7 @@ import { Strategy, } from "passport-jwt";
 import { ExtractJwt } from "passport-jwt";
 import { UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { IRefreshTokenPayload } from "../models/refresh-token-payload.model";
+import { IRefreshTokenPayload, IRefreshTokenPayloadWithToken } from "../models/refresh-token-payload.model";
 import { AuthService } from "../services/auth.service";
 import { Request } from "express";
 import { TokenType } from "../models/token-type.enum";
@@ -20,12 +20,12 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get('auth.jwt.secret'),
+      secretOrKey: configService.get('auth.jwt.secret.refresh'),
       passReqToCallback: true,
     });
   }
 
-  async validate(req: Request, payload: IRefreshTokenPayload): Promise<IRefreshTokenPayload & { refreshToken: string; }> {
+  async validate(req: Request, payload: IRefreshTokenPayload): Promise<IRefreshTokenPayloadWithToken> {
     if (payload.use != TokenType.Refresh) throw new UnauthorizedException('Refresh denied');
     const token = req.get('authorization')?.replace('Bearer ', '');
     if (!token) throw new UnauthorizedException('Missing refresh token');

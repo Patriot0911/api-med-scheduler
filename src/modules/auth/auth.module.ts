@@ -16,12 +16,7 @@ import { RoleEntity } from '../roles/entities/role.entity';
   imports: [
     PassportModule,
     RolesModule,
-    JwtModule.registerAsync({
-      useFactory: (config: ConfigService) => ({
-        secret: config.get('auth.jwt.secret'),
-      }),
-      inject: [ConfigService],
-    }),
+    JwtModule,
     TypeOrmModule.forFeature([
       UserEntity,
       RoleEntity,

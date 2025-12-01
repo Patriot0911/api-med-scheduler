@@ -132,7 +132,7 @@ export class AuthService {
       sub: userId,
     };
     const accessToken = await this.signTokenPayload(accessPayload, TokenType.Access);
-    const refreshToken = await this.signTokenPayload(refreshPayload, TokenType.Access);
+    const refreshToken = await this.signTokenPayload(refreshPayload, TokenType.Refresh);
     return { accessToken, refreshToken };
   }
 
@@ -147,7 +147,8 @@ export class AuthService {
 
   async signTokenPayload(payload: any, type: TokenType): Promise<string> {
     return await this.jwtService.signAsync(payload, {
-      expiresIn: this.configService.get(`auth.jwt.${type}Ttl`),
+      expiresIn: this.configService.get(`auth.jwt.ttl.${type}`),
+      secret: this.configService.get(`auth.jwt.secret.${type}`),
     });
   }
 }
