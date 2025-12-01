@@ -19,6 +19,6 @@ import { UserEntity } from '../users/entities/user.entity';
     RolesService,
     RolesMapper,
   ],
-  exports: [RolesService,],
+  exports: [RolesService, RolesMapper,],
 })
 export class RolesModule {}

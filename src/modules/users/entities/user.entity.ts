@@ -1,5 +1,5 @@
 import { RoleEntity } from 'src/modules/roles/entities/role.entity';
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, ManyToMany, JoinTable } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, JoinTable } from 'typeorm';
 
 @Entity('users')
 export class UserEntity {
@@ -14,6 +14,9 @@ export class UserEntity {
 
   @Column()
   password: string;
+
+  @Column()
+  refreshToken: string;
 
   @ManyToMany(() => RoleEntity)
   @JoinTable({

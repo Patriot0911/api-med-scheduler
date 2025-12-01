@@ -1,16 +1,13 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { RegistrationDto } from "../dto/registration.dto";
-import { AuthService } from "../services/auth.service";
-import { TRegisterResponse } from "../models/register.response";
 import { LoginDto } from "../dto/login.dto";
-import { TLoginResponse } from "../models/login.response";
 import { ITokenModel } from "../models/token.model";
 import { JwtRefreshGuard } from "../guards/jwt-refresh.guard";
-import { TLogoutResponse } from "../models/logout.response";
 import { JwtAccessGuard } from "../guards/access-refresh.guard";
+import { AuthService } from "../services/auth.service";
 import { IAccessTokenPayload } from "../models/access-token-payload.model";
-import { TGetMeResponse } from "../models/get-me.response";
+import { IRefreshTokenPayloadWithToken } from "../models/refresh-token-payload.model";
 
 @ApiTags('Auth')
 @Controller('api/auth')
@@ -21,12 +18,12 @@ export class AuthController {
   ) {}
 
   @Post('login')
-  async login(@Body() data: LoginDto): Promise<TLoginResponse> {
+  async login(@Body() data: LoginDto): Promise<any> {
     return await this.authService.login(data);
   }
 
   @Post('register')
-  async register(@Body() data: RegistrationDto): Promise<TRegisterResponse> {
+  async register(@Body() data: RegistrationDto): Promise<any> {
     return await this.authService.register(data);
   }
 
@@ -34,22 +31,22 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(JwtRefreshGuard)
   async refresh(@Req() request): Promise<ITokenModel> {
-    const { user } = request;
-    return await this.authService.refresh(user);
+    const { sub, refreshToken } = <IRefreshTokenPayloadWithToken> request.user;
+    return await this.authService.refreshToken(sub, refreshToken);
   }
 
   @Post('logout')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard)
-  async logout(@Req() request): Promise<TLogoutResponse> {
-    const { user } = request;
-    return await this.authService.logout(user);
+  async logout(@Req() request): Promise<boolean> {
+    const { sub } = <IAccessTokenPayload> request.user;
+    return await this.authService.logout(sub);
   }
 
   @Get('me')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard)
-  async me(@Req() request): Promise<TGetMeResponse> {
+  async me(@Req() request): Promise<any> {
     const { sub, } = <IAccessTokenPayload> request.user;
     return await this.authService.getMe(sub);
   }
