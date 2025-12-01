@@ -5,12 +5,13 @@ import { RolesService } from './services/roles.service';
 import { RolesController } from './controllers/roles.controller';
 import { UsersModule } from '../users/users.module';
 import { RolesMapper } from './mappers/roles.mapper';
+import { UserEntity } from '../users/entities/user.entity';
 
 @Module({
   imports: [
-    UsersModule,
     TypeOrmModule.forFeature([
       RoleEntity,
+      UserEntity,
     ]),
   ],
   controllers: [RolesController,],

@@ -1,7 +1,4 @@
 import { Permission } from "../../../shared/models/permission.enum";
+import { IEditRoleModel } from "./edit-role.model";
 
-export interface ICreateRoleModel {
-  name: string;
-  permissions: Permission[];
-  rolePriority: number | undefined;
-};
+export interface ICreateRoleModel extends IEditRoleModel{};

@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IGetSemestersFiltersModel } from "../models/get-semesters-filters-model";
-import { IsDate, IsNumber, IsOptional, Max, Min } from "class-validator";
+import { IsDate, IsNumber, IsOptional, IsString, Max, Min } from "class-validator";
 
 export class GetSemestersRequestDto implements IGetSemestersFiltersModel {
   @ApiProperty({ required: false, default: 1 })
@@ -23,4 +23,9 @@ export class GetSemestersRequestDto implements IGetSemestersFiltersModel {
   @IsDate()
   @ApiPropertyOptional({ type: Date, description: 'Semesters to' })
   dateTo?: Date | undefined;
+
+  @IsOptional()
+  @IsString()
+  @ApiPropertyOptional({ type: 'string', description: 'Search string' })
+  search?: string;
 }
