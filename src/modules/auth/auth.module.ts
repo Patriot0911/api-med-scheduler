@@ -7,10 +7,10 @@ import { JwtModule, JwtService } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtAccessStrategy } from './strategies/jwt-access.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
-import { ConfigService } from '@nestjs/config';
 import { AuthService } from './services/auth.service';
 import { RolesModule } from '../roles/roles.module';
 import { RoleEntity } from '../roles/entities/role.entity';
+import { AuthMapper } from './mappers/auth.mapper';
 
 @Module({
   imports: [
@@ -29,6 +29,7 @@ import { RoleEntity } from '../roles/entities/role.entity';
     JwtService,
     JwtAccessStrategy,
     JwtRefreshStrategy,
+    AuthMapper,
   ],
   exports: [],
 })

@@ -83,4 +83,12 @@ export class SemestersService {
     );
     return !!updatedSemester.affected;
   }
+
+  async deleteSemester(semesterId: string): Promise<ISemesterItemModel> {
+    const semesetrData = await this.semestersRepository.findOneOrFail({
+      where: { id: semesterId, }
+    });
+    const removedSemester = await this.semestersRepository.remove(semesetrData);
+    return this.semestersMapper.entityToItem(removedSemester);
+  }
 }

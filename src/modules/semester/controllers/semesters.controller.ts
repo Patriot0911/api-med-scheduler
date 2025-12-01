@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { JwtAccessGuard } from "src/modules/auth/guards/access-refresh.guard";
 import { PermissionsGuard } from "src/modules/auth/guards/permission.guard";
@@ -48,5 +48,13 @@ export class SemestersController {
   @Permissions(Permission.ADMIN)
   async editSemester(@Param('semesterId') semesterId: string, @Body() data: CreateSemesterRequestDto,): Promise<boolean> {
     return await this.semestersService.editSemester(data, semesterId);
+  }
+
+  @Delete(':semesterId')
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard, PermissionsGuard)
+  @Permissions(Permission.ADMIN)
+  async deleteSemester(@Param('semesterId') semesterId: string,): Promise<ISemesterItemModel> {
+    return await this.semestersService.deleteSemester(semesterId);
   }
 }

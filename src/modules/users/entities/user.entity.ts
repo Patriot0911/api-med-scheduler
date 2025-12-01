@@ -18,7 +18,7 @@ export class UserEntity {
   @Column({ nullable: true, })
   refreshToken: string;
 
-  @ManyToMany(() => RoleEntity)
+  @ManyToMany(() => RoleEntity, (role) => role.users)
   @JoinTable({
     name: 'user_roles',
     joinColumn: { name: 'userId', referencedColumnName: 'id' },

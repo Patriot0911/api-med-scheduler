@@ -13,6 +13,9 @@ import { RoleEntity } from 'src/modules/roles/entities/role.entity';
 import { RolesMapper } from 'src/modules/roles/mappers/roles.mapper';
 import { IRefreshTokenPayload } from '../models/refresh-token-payload.model';
 import { IAccessTokenPayload } from '../models/access-token-payload.model';
+import { IUserPayload } from '../models/user-payload.model';
+import { AuthMapper } from '../mappers/auth.mapper';
+import { IAuthResponse } from '../models/auth-response.model';
 
 @Injectable()
 export class AuthService {
@@ -21,20 +24,22 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly rolesMapper: RolesMapper,
+    private readonly authMapper: AuthMapper,
     @InjectRepository(UserEntity)
     private usersRepository: Repository<UserEntity>,
     @InjectRepository(RoleEntity)
     private rolesRepository: Repository<RoleEntity>,
   ) {}
 
-  async getMe(userId: string) {
+  async getMe(userId: string): Promise<IUserPayload> {
     const userData = await this.usersRepository.findOneOrFail({
       where: { id: userId, },
+      relations: ['roles'],
     });
-    return userData;
+    return this.authMapper.userEntityToUserPayload(userData);
   }
 
-  async login(data: ILoginModel) {
+  async login(data: ILoginModel): Promise<IAuthResponse> {
     const userData = await this.usersRepository.findOne({
       where: { email: data.email, },
     });
@@ -55,10 +60,10 @@ export class AuthService {
       roles
     );
     await this.updateRefreshToken(userData.id, tokens.refreshToken);
-    return tokens;
+    return this.authMapper.entitiesToAuth(tokens, { ...userData, roles: userRoles, });
   }
 
-  async register(data: IRegisterModel) {
+  async register(data: IRegisterModel): Promise<IAuthResponse> {
     const existingUser = await this.usersRepository.findOne({
       where: { email: data.email, },
     });
@@ -79,7 +84,7 @@ export class AuthService {
       roles
     );
     await this.updateRefreshToken(createdUser.id, tokens.refreshToken);
-    return tokens;
+    return this.authMapper.entitiesToAuth(tokens, createdUser);
   }
 
   async refreshToken(userId: string, refreshToken: string) {
@@ -88,7 +93,7 @@ export class AuthService {
     });
     if (!userData || !userData.refreshToken) throw new UnauthorizedException();
 
-    const isValid = await this.passwordService.verify(refreshToken, userData.refreshToken);
+    const isValid = await this.passwordService.verify(userData.refreshToken, refreshToken);
     if (!isValid) throw new UnauthorizedException();
     const userRoles = await this.rolesRepository.find({
       where: {
@@ -103,8 +108,10 @@ export class AuthService {
       permissions,
       roles,
     );
+    console.log('8');
     await this.updateRefreshToken(userId, tokens.refreshToken);
-    return tokens;
+    console.log('9');
+    return this.authMapper.entitiesToAuth(tokens, { ...userData, roles: userRoles, });
   }
 
   async logout(userId: string): Promise<boolean> {
