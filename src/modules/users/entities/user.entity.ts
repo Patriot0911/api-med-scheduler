@@ -1,3 +1,4 @@
+import { LessonEntity } from 'src/modules/lesson/entities/lesson.entity';
 import { RoleEntity } from 'src/modules/roles/entities/role.entity';
 import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, JoinTable } from 'typeorm';
 
@@ -25,4 +26,12 @@ export class UserEntity {
     inverseJoinColumn: { name: 'roleId', referencedColumnName: 'id' },
   })
   roles: RoleEntity[];
+
+  @ManyToMany(() => LessonEntity, (lesson) => lesson.teachers)
+  @JoinTable({
+    name: 'user_lessons',
+    joinColumn: { name: 'userId', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'lessonId', referencedColumnName: 'id' },
+  })
+  lessons: LessonEntity[];
 }

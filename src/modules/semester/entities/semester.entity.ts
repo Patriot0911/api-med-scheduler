@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToMany } from 'typeorm';
+import { LessonEntity } from 'src/modules/lesson/entities/lesson.entity';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, OneToMany } from 'typeorm';
 
 @Entity('semesters')
 export class SemesterEntity {
@@ -13,4 +14,7 @@ export class SemesterEntity {
 
   @Column()
   dateTo: Date;
+
+  @OneToMany(() => LessonEntity, (lesson) => lesson.semester)
+  lessons: LessonEntity[];
 }

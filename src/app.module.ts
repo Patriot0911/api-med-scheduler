@@ -8,12 +8,14 @@ import { AuthModule } from './modules/auth/auth.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { DictionariesModule } from './modules/dictionaries/dictionaries.module';
 import { SemesterModule } from './modules/semester/semester.module';
+import { LessonModule } from './modules/lesson/lesson.module';
 
 @Module({
   imports: [
     AuthModule,
     RolesModule,
     UsersModule,
+    LessonModule,
     SemesterModule,
     DictionariesModule,
     StudentGroupsModule,
@@ -39,6 +41,7 @@ import { SemesterModule } from './modules/semester/semester.module';
         migrationsRun: true,
       }),
     }),
+    LessonModule,
   ],
   providers: [],
 })
