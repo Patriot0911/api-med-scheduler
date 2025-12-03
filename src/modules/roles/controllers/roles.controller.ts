@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { JwtAccessGuard } from "src/modules/auth/guards/access-refresh.guard";
 import { RolesService } from "../services/roles.service";
@@ -24,7 +24,8 @@ export class RolesController {
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
   @Permissions(Permission.VIEW_ROLES, Permission.ADMIN)
-  async getAllRoles(@Param() params: GetSemestersRequestDto): Promise<IGenericListPayloadResponse<IRoleListItemModel>> {
+  async getAllRoles(@Query() params: GetSemestersRequestDto): Promise<IGenericListPayloadResponse<IRoleListItemModel>> {
+    console.log({params});
     return await this.rolesService.getAll(params);
   }
 

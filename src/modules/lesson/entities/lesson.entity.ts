@@ -12,6 +12,10 @@ export class LessonEntity {
   @Column({ nullable: true, })
   date: Date;
 
+  // minutes
+  @Column({ type: 'int', })
+  duration: number;
+
   @Column({ nullable: true, })
   delayedDate: Date;
 

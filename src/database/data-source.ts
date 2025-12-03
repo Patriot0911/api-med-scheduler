@@ -13,5 +13,7 @@ export default new DataSource({
   database: process.env.POSTGRES_DB,
 
   entities: ['dist/**/*.entity.js'],
-  migrations: ['dist/database/migrations/*.js'],
+  migrations: [
+    'dist/database/migrations/*.js',
+  ],
 });

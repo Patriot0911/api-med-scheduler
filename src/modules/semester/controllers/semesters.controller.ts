@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { JwtAccessGuard } from "src/modules/auth/guards/access-refresh.guard";
 import { PermissionsGuard } from "src/modules/auth/guards/permission.guard";
@@ -22,7 +22,7 @@ export class SemestersController {
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
   @Permissions(Permission.ADMIN)
-  async getAllSemesters(@Param() params: GetSemestersRequestDto): Promise<IGenericListPayloadResponse<ISemesterListItemModel>> {
+  async getAllSemesters(@Query() params: GetSemestersRequestDto): Promise<IGenericListPayloadResponse<ISemesterListItemModel>> {
     return await this.semestersService.getAll(params);
   }
 

@@ -4,7 +4,7 @@ export class AuthInit1764429821809 implements MigrationInterface {
     name = 'AuthInit1764429821809'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`CREATE TYPE "public"."roles_permissions_enum" AS ENUM()`);
+        await queryRunner.query(`CREATE TYPE "public"."roles_permissions_enum" AS ENUM('admin')`);
         await queryRunner.query(`CREATE TABLE "roles" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" character varying NOT NULL, "permissions" "public"."roles_permissions_enum" array NOT NULL, CONSTRAINT "UQ_648e3f5447f725579d7d4ffdfb7" UNIQUE ("name"), CONSTRAINT "PK_c1433d71a4838793a49dcad46ab" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "users" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "email" character varying NOT NULL, "fullName" character varying NOT NULL, "password" character varying NOT NULL, CONSTRAINT "PK_a3ffb1c0c8416b9fc6f907b7433" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "sessions" ("sid" uuid NOT NULL DEFAULT uuid_generate_v4(), "gid" character varying(36) NOT NULL, "user_id" uuid NOT NULL, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_e2d6172ca19b8ebef797c362b05" PRIMARY KEY ("sid"))`);
