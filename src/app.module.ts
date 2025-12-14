@@ -17,8 +17,9 @@ import { LessonModule } from './modules/lesson/lesson.module';
     UsersModule,
     LessonModule,
     SemesterModule,
-    DictionariesModule,
+    LessonModule,
     StudentGroupsModule,
+    DictionariesModule,
     ConfigModule.forRoot({
       isGlobal: true,
       load: [appConfig, dbConfig, authConfig],
@@ -41,7 +42,6 @@ import { LessonModule } from './modules/lesson/lesson.module';
         migrationsRun: true,
       }),
     }),
-    LessonModule,
   ],
   providers: [],
 })

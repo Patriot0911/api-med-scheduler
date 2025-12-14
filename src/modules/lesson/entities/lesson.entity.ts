@@ -9,14 +9,14 @@ export class LessonEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ nullable: true, })
+  @Column({ type: 'timestamptz', nullable: true, })
   date: Date;
 
   // minutes
   @Column({ type: 'int', })
   duration: number;
 
-  @Column({ nullable: true, })
+  @Column({ type: 'timestamptz', nullable: true, })
   delayedDate: Date;
 
   @Column()

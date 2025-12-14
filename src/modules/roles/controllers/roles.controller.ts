@@ -10,7 +10,7 @@ import { IAccessTokenPayload } from "src/modules/auth/models/access-token-payloa
 import { IGenericListPayloadResponse } from "src/shared/models/generic-list-payload.response";
 import { IRoleListItemModel } from "../models/role-list-item.model";
 import { IRoleItemModel } from "../models/role-item.model";
-import { GetSemestersRequestDto } from "../dto/get-roles-request.dto";
+import { GetRolesRequestDto } from "../dto/get-roles-request.dto";
 import { EditRoleRequestDto } from "../dto/edit-role-request.dto";
 
 @ApiTags('Roles')
@@ -24,7 +24,7 @@ export class RolesController {
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
   @Permissions(Permission.VIEW_ROLES, Permission.ADMIN)
-  async getAllRoles(@Query() params: GetSemestersRequestDto): Promise<IGenericListPayloadResponse<IRoleListItemModel>> {
+  async getAllRoles(@Query() params: GetRolesRequestDto): Promise<IGenericListPayloadResponse<IRoleListItemModel>> {
     console.log({params});
     return await this.rolesService.getAll(params);
   }

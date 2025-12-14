@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { StudentGroupEntity } from './entities/student-group.entity';
-import { StudentgroupsService } from './services/student-groups.service';
+import { StudentGroupsService } from './services/student-groups.service';
+import { StudentGroupsMapper } from './mappers/student-groups.mapper';
+import { StudentGroupsController } from './controllers/student-groups.controller';
 
 @Module({
   imports: [
@@ -9,9 +11,12 @@ import { StudentgroupsService } from './services/student-groups.service';
       StudentGroupEntity,
     ]),
   ],
-  controllers: [],
+  controllers: [
+    StudentGroupsController,
+  ],
   providers: [
-    StudentgroupsService,
+    StudentGroupsService,
+    StudentGroupsMapper,
   ],
   exports: [],
 })

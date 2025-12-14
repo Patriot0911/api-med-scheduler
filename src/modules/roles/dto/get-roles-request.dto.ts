@@ -1,8 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsNumber, IsOptional, IsString, Max, Min } from "class-validator";
-import { IGetRolesFiltersModel } from "../models/get-roles-filters-model";
+import { IGetRolesFiltersModel } from "../models/get-roles-filters.model";
 
-export class GetSemestersRequestDto implements IGetRolesFiltersModel {
+export class GetRolesRequestDto implements IGetRolesFiltersModel {
   @ApiProperty({ required: false, default: 1 })
   @IsNumber()
   @Min(1)

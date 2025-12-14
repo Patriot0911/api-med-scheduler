@@ -9,7 +9,7 @@ import { UserEntity } from 'src/modules/users/entities/user.entity';
 import { IRoleItemModel } from '../models/role-item.model';
 import { IGenericListPayloadResponse } from 'src/shared/models/generic-list-payload.response';
 import { IRoleListItemModel } from '../models/role-list-item.model';
-import { IGetRolesFiltersModel } from '../models/get-roles-filters-model';
+import { IGetRolesFiltersModel } from '../models/get-roles-filters.model';
 
 @Injectable()
 export class RolesService {
@@ -41,10 +41,10 @@ export class RolesService {
       rolesQb.andWhere('roles.name LIKE :search', { search, });
     }
 
-    const [semestersData, total] = await rolesQb.getManyAndCount();
+    const [rolesData, total] = await rolesQb.getManyAndCount();
 
     return {
-      items: semestersData.map(
+      items: rolesData.map(
         (r) => this.rolesMapper.entityToListItem(r)
       ),
       meta: { count: total, },

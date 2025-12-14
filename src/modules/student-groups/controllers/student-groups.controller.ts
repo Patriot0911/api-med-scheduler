@@ -1,19 +1,64 @@
-import { Controller, Get, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { JwtAccessGuard } from "src/modules/auth/guards/access-refresh.guard";
-import { StudentgroupsService } from "../services/student-groups.service";
+import { StudentGroupsService } from "../services/student-groups.service";
+import { Permissions } from "src/modules/auth/decorator/roles.decorator";
+import { Permission } from "src/shared/models/permission.enum";
+import { PermissionsGuard } from "src/modules/auth/guards/permission.guard";
+import { IGenericListPayloadResponse } from "src/shared/models/generic-list-payload.response";
+import { GetStudentGroupsRequestDto } from "../dto/get-student-groups-request.dto";
+import { IStudentGroupListItemModel } from "../models/student-group-list-item.model";
+import { IStudentGroupItemModel } from "../models/student-group-item.model";
+import { CreateStudentGroupRequestDto } from "../dto/create-student-group-request.dto";
+import { EditStudentGroupRequestDto } from "../dto/edit-student-group-request.dto";
 
 @ApiTags('Student Groups')
-@Controller('api/lessons')
+@Controller('api/student-groups')
 export class StudentGroupsController {
   constructor(
-    private readonly studentGroups: StudentgroupsService,
+    private readonly studentGroupsService: StudentGroupsService,
   ) {}
 
-  // @Get()
-  // @ApiBearerAuth()
-  // @UseGuards(JwtAccessGuard)
-  // async getLessons(): Promise<any> {
-  //   return await this.studentGroups.getAllLessons();
-  // }
+  @Get()
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard, PermissionsGuard)
+  @Permissions(Permission.VIEW_GROUPS, Permission.ADMIN)
+  async getAllStudentGroups(@Query() params: GetStudentGroupsRequestDto): Promise<IGenericListPayloadResponse<IStudentGroupListItemModel>> {
+    return await this.studentGroupsService.getAll(params);
+  }
+
+  @Get(':studentGroupId')
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard, PermissionsGuard)
+  @Permissions(Permission.VIEW_GROUPS, Permission.ADMIN)
+  async getStudentGroup(@Param('studentGroupId') studentGroupId: string): Promise<IStudentGroupItemModel> {
+    return await this.studentGroupsService.getById(studentGroupId);
+  }
+
+  @Post()
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard, PermissionsGuard)
+  @Permissions(Permission.CREATE_GROUPS, Permission.ADMIN)
+  async createStudentGroup(@Body() data: CreateStudentGroupRequestDto): Promise<IStudentGroupItemModel> {
+    return await this.studentGroupsService.createGroup(data);
+  }
+
+  @Put(':studentGroupId')
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard, PermissionsGuard)
+  @Permissions(Permission.EDIT_GROUPS, Permission.ADMIN)
+  async editRole(
+    @Param('studentGroupId') studentGroupId: string,
+    @Body() data: EditStudentGroupRequestDto,
+  ): Promise<boolean> {
+    return await this.studentGroupsService.editStudentGroup(data, studentGroupId);
+  }
+
+  @Delete(':studentGroupId')
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard, PermissionsGuard)
+  @Permissions(Permission.DELETE_GROUPS, Permission.ADMIN)
+  async deleteStudentGroup(@Param('studentGroupId') studentGroupId: string): Promise<IStudentGroupItemModel> {
+    return await this.studentGroupsService.deleteGroup(studentGroupId);
+  }
 }
