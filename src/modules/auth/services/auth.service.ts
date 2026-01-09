@@ -108,9 +108,7 @@ export class AuthService {
       permissions,
       roles,
     );
-    console.log('8');
     await this.updateRefreshToken(userId, tokens.refreshToken);
-    console.log('9');
     return this.authMapper.entitiesToAuth(tokens, { ...userData, roles: userRoles, });
   }
 

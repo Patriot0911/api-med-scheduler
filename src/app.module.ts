@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { appConfig, authConfig, dbConfig } from './config';
+import { appConfig, authConfig, dbConfig, featuresConfig } from './config';
 import { StudentGroupsModule } from './modules/student-groups/student-groups.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from './modules/users/users.module';
@@ -22,7 +22,7 @@ import { LessonModule } from './modules/lesson/lesson.module';
     DictionariesModule,
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, dbConfig, authConfig],
+      load: [appConfig, dbConfig, authConfig, featuresConfig],
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],

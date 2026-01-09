@@ -25,7 +25,6 @@ export class RolesController {
   @UseGuards(JwtAccessGuard, PermissionsGuard)
   @Permissions(Permission.VIEW_ROLES, Permission.ADMIN)
   async getAllRoles(@Query() params: GetRolesRequestDto): Promise<IGenericListPayloadResponse<IRoleListItemModel>> {
-    console.log({params});
     return await this.rolesService.getAll(params);
   }
 

@@ -12,6 +12,8 @@ import { IAuthResponse } from "../models/auth-response.model";
 import { ApiGenericResponses } from "src/shared/factories/api-generic-responses.factory";
 import { AuthResponseDto } from "../dto/auth-response.dto";
 import { UserPayloadDto } from "../dto/user-payload.dto";
+import { Feature } from 'src/shared/decorator/features.decorator';
+import { FeatureGuard } from 'src/shared/guards/features.guard';
 
 @ApiTags('Auth')
 @Controller('api/auth')
@@ -27,6 +29,8 @@ export class AuthController {
   }
 
   @Post('register')
+  @Feature('register')
+  @UseGuards(FeatureGuard)
   @ApiGenericResponses({[HttpStatus.CREATED]: AuthResponseDto,})
   async register(@Body() data: RegistrationDto): Promise<IAuthResponse> {
     return await this.authService.register(data);
