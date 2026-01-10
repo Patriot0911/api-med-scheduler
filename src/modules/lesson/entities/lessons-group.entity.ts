@@ -9,8 +9,8 @@ export class LessonsGroupEntity {
   @Column()
   name: string;
 
-  @Column({ nullable: true, })
-  note: string;
+  @Column({ type: 'text', nullable: true, })
+  note: string | null;
 
   @OneToMany(() => LessonEntity, (lesson) => lesson.lessonGroup)
   lessons: LessonEntity[];

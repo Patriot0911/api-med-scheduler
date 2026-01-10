@@ -22,8 +22,8 @@ export class LessonEntity {
   @Column()
   name: string;
 
-  @Column({ nullable: true, })
-  note: string;
+  @Column({ type: 'text', nullable: true, })
+  note: string | null;
 
   @ManyToMany(() => UserEntity, (user) => user.lessons)
   teachers: UserEntity[];

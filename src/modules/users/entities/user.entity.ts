@@ -16,8 +16,8 @@ export class UserEntity {
   @Column()
   password: string;
 
-  @Column({ nullable: true, })
-  refreshToken: string;
+  @Column({ type: 'text', nullable: true, })
+  refreshToken: string | null;
 
   @ManyToMany(() => RoleEntity, (role) => role.users)
   @JoinTable({

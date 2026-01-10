@@ -71,7 +71,7 @@ export class AuthService {
       throw new BadRequestException('Email is already in use');
     }
     const hashedPassword = await this.passwordService.hash(data.password);
-    const newUser = await this.usersRepository.create({
+    const newUser = this.usersRepository.create({
       email: data.email,
       fullName: data.fullName,
       password: hashedPassword,
@@ -115,7 +115,7 @@ export class AuthService {
   async logout(userId: string): Promise<boolean> {
     const updatedUser = await this.usersRepository.update(
       { id: userId, },
-      { refreshToken: undefined, }
+      { refreshToken: null, }
     );
     return !!updatedUser.affected;
   }

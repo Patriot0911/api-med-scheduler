@@ -12,6 +12,7 @@ export class StudentGroupEntity {
   @Column()
   studyYear: string;
 
+  // todo: переробити під довідник з типом навчання
   // очне / заочне * уточнити
   @Column({ nullable: true, })
   studySpecification: string;
