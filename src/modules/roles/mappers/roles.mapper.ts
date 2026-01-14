@@ -3,6 +3,7 @@ import { RoleEntity } from 'src/modules/roles/entities/role.entity';
 import { IAccessModel } from '../models/access.model';
 import { IRoleListItemModel } from '../models/role-list-item.model';
 import { IRoleItemModel } from '../models/role-item.model';
+import { IRoleDictionaryItemModel } from '../models/role-dictionary-item.model';
 
 @Injectable()
 export class RolesMapper {
@@ -16,7 +17,7 @@ export class RolesMapper {
     return { id, name, permissions, rolePriority, };
   }
 
-  entityToDictionaryItem(role: RoleEntity) {
+  entityToDictionaryItem(role: RoleEntity): IRoleDictionaryItemModel {
     const { id, name, } = role;
     return { id, name, };
   }

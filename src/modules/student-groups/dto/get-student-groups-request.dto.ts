@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsNumber, IsOptional, IsString, Max, Min } from "class-validator";
+import { IsArray, IsNumber, IsOptional, IsString, Max, Min } from "class-validator";
 import { IGetStudentGroupsFiltersModel } from "../models/get-student-groups-filters.model";
 
 export class GetStudentGroupsRequestDto implements IGetStudentGroupsFiltersModel {
@@ -18,4 +18,9 @@ export class GetStudentGroupsRequestDto implements IGetStudentGroupsFiltersModel
   @IsString()
   @ApiPropertyOptional({ type: 'string', description: 'Search string' })
   search?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ApiPropertyOptional({ type: 'array', description: 'tag of arrays' })
+  tags?: string[];
 }

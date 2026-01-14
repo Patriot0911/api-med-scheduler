@@ -45,7 +45,9 @@ export class SemestersService {
       semQb.andWhere('sem.name LIKE :search', { search, });
     }
 
-    const [semestersData, total] = await semQb.getManyAndCount();
+    const [semestersData, total] = await semQb
+      .distinct(true)
+      .getManyAndCount();
 
     return {
       items: semestersData.map(

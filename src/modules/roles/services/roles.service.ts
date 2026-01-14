@@ -41,7 +41,9 @@ export class RolesService {
       rolesQb.andWhere('roles.name LIKE :search', { search, });
     }
 
-    const [rolesData, total] = await rolesQb.getManyAndCount();
+    const [rolesData, total] = await rolesQb
+      .distinct(true)
+      .getManyAndCount();
 
     return {
       items: rolesData.map(

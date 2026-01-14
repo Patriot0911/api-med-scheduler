@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsString, MinLength } from "class-validator";
+import { IsArray, IsString, MinLength } from "class-validator";
 import { IEditStudentGroupModel } from "../models/edit-student-group.model";
 
 export class EditStudentGroupRequestDto implements IEditStudentGroupModel {
@@ -8,9 +8,9 @@ export class EditStudentGroupRequestDto implements IEditStudentGroupModel {
   @MinLength(3)
   name: string;
 
-  @ApiProperty({ example: 'очне', })
-  @IsString()
-  studySpecification?: string;
+  @ApiProperty({ example: ['ddd-www-ffff', 'qqq-eee-ttt-fff'], type: [String], })
+  @IsArray()
+  tagIds: string[];
 
   @ApiProperty({ example: '1 курс, Магістратура', })
   @IsString()

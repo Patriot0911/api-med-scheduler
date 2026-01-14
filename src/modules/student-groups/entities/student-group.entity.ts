@@ -1,5 +1,6 @@
 import { LessonEntity } from 'src/modules/lesson/entities/lesson.entity';
 import { Column, Entity, ManyToMany, PrimaryGeneratedColumn, } from 'typeorm';
+import { GroupTagEntity } from './group-tags.entity';
 
 @Entity('student_groups')
 export class StudentGroupEntity {
@@ -12,10 +13,8 @@ export class StudentGroupEntity {
   @Column()
   studyYear: string;
 
-  // todo: переробити під довідник з типом навчання
-  // очне / заочне * уточнити
-  @Column({ nullable: true, })
-  studySpecification: string;
+  @ManyToMany(() => GroupTagEntity, (groupTag) => groupTag.studentGroups)
+  groupTags: GroupTagEntity[];
 
   @ManyToMany(() => LessonEntity, (lesson) => lesson.studentGroups)
   lessons: LessonEntity[];
