@@ -23,7 +23,7 @@ export class RolesController {
   @Get()
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.VIEW_ROLES, Permission.ADMIN)
+  @Permissions(Permission.MANAGE_ROLES, Permission.ADMIN)
   async getAllRoles(@Query() params: GetRolesRequestDto): Promise<IGenericListPayloadResponse<IRoleListItemModel>> {
     return await this.rolesService.getAll(params);
   }
@@ -31,7 +31,7 @@ export class RolesController {
   @Get(':roleId')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.VIEW_ROLES, Permission.ADMIN)
+  @Permissions(Permission.MANAGE_ROLES, Permission.ADMIN)
   async getRole(@Param('roleId') roleId: string): Promise<IRoleItemModel> {
     return await this.rolesService.getById(roleId);
   }
@@ -39,7 +39,7 @@ export class RolesController {
   @Post()
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.CREATE_ROLES, Permission.ADMIN)
+  @Permissions(Permission.MANAGE_ROLES, Permission.ADMIN)
   async createRole(@Body() data: CreateRoleRequestDto, @Req() request): Promise<IRoleItemModel> {
     const { sub, } = <IAccessTokenPayload> request.user;
     return await this.rolesService.createRole(data, sub);
@@ -48,7 +48,7 @@ export class RolesController {
   @Put(':roleId')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.EDIT_ROLES, Permission.ADMIN)
+  @Permissions(Permission.MANAGE_ROLES, Permission.ADMIN)
   async editRole(
     @Param('roleId') roleId: string,
     @Body() data: EditRoleRequestDto,
@@ -61,7 +61,7 @@ export class RolesController {
   @Delete(':roleId')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.DELETE_ROLES, Permission.ADMIN)
+  @Permissions(Permission.MANAGE_ROLES, Permission.ADMIN)
   async deleteRole(@Param('roleId') roleId: string, @Req() request): Promise<IRoleItemModel> {
     const { sub, } = <IAccessTokenPayload> request.user;
     return await this.rolesService.deleteRole(roleId, sub);

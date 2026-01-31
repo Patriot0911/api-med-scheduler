@@ -1,6 +1,6 @@
-import { LessonEntity } from 'src/modules/lesson/entities/lesson.entity';
-import { Column, Entity, ManyToMany, PrimaryGeneratedColumn, } from 'typeorm';
+import { Column, Entity, ManyToMany, OneToMany, PrimaryGeneratedColumn, } from 'typeorm';
 import { GroupTagEntity } from './group-tags.entity';
+import { StudentGroupLessonEntity } from 'src/modules/lesson/entities/student-group-lesson.entity';
 
 @Entity('student_groups')
 export class StudentGroupEntity {
@@ -16,6 +16,6 @@ export class StudentGroupEntity {
   @ManyToMany(() => GroupTagEntity, (groupTag) => groupTag.studentGroups)
   groupTags: GroupTagEntity[];
 
-  @ManyToMany(() => LessonEntity, (lesson) => lesson.studentGroups)
-  lessons: LessonEntity[];
+  @OneToMany(() => StudentGroupLessonEntity, (studentGroupLesson) => studentGroupLesson.studentGroup)
+  studentGroupLessons: StudentGroupLessonEntity[];
 }

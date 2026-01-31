@@ -8,12 +8,16 @@ import { LessonsController } from './controllers/lessons.controller';
 import { LessonsGroupsController } from './controllers/lessons-groups.controller';
 import { LessonGroupsMapper } from './mappers/lesson-groups.mapper';
 import { LessonsMapper } from './mappers/lessons.mapper';
+import { StudentGroupLessonEntity } from './entities/student-group-lesson.entity';
+import { TeacherLessonEntity } from './entities/teacher-lesson.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       LessonEntity,
       LessonsGroupEntity,
+      StudentGroupLessonEntity,
+      TeacherLessonEntity,
     ]),
   ],
   controllers: [

@@ -24,7 +24,7 @@ export class GroupTagsController {
   @Get()
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.VIEW_GROUPS, Permission.ADMIN)
+  @Permissions(Permission.READ_GROUPS, Permission.ADMIN)
   async getAllTags(@Query() params: GetTagsRequestDto): Promise<IGenericListPayloadResponse<ITagListItemModel>> {
     return await this.groupTagsService.getAll(params);
   }
@@ -32,7 +32,7 @@ export class GroupTagsController {
   @Get(':tagId')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.VIEW_GROUPS, Permission.ADMIN)
+  @Permissions(Permission.READ_GROUPS, Permission.ADMIN)
   async getTag(@Param('tagId') tagId: string): Promise<ITagItemModel> {
     return await this.groupTagsService.getById(tagId);
   }
@@ -40,7 +40,7 @@ export class GroupTagsController {
   @Post()
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.EDIT_GROUPS, Permission.ADMIN)
+  @Permissions(Permission.MANAGE_GROUPS, Permission.ADMIN)
   async createTag(@Body() data: CreateTagRequestDto): Promise<ITagItemModel> {
     return await this.groupTagsService.createTag(data);
   }
@@ -48,7 +48,7 @@ export class GroupTagsController {
   @Put(':tagId')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.EDIT_GROUPS, Permission.ADMIN)
+  @Permissions(Permission.MANAGE_GROUPS, Permission.ADMIN)
   async editTag(
     @Param('tagId') tagId: string,
     @Body() data: EditTagRequestDto,
@@ -59,7 +59,7 @@ export class GroupTagsController {
   @Delete(':tagId')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.EDIT_GROUPS, Permission.ADMIN)
+  @Permissions(Permission.MANAGE_GROUPS, Permission.ADMIN)
   async deleteTag(@Param('tagId') tagId: string): Promise<ITagItemModel> {
     return await this.groupTagsService.deleteTag(tagId);
   }
@@ -67,7 +67,7 @@ export class GroupTagsController {
   @Get(':tagId/groups')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.EDIT_GROUPS, Permission.ADMIN)
+  @Permissions(Permission.MANAGE_GROUPS, Permission.ADMIN)
   async getTagGroups(@Param('tagId') tagId: string): Promise<ITagStudentGroupItemModel[]> {
     return await this.groupTagsService.getTagGroupsById(tagId);
   }
@@ -75,7 +75,7 @@ export class GroupTagsController {
   @Put(':tagId/groups')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.EDIT_GROUPS, Permission.ADMIN)
+  @Permissions(Permission.MANAGE_GROUPS, Permission.ADMIN)
   async editTagGroups(@Param('tagId') tagId: string, @Body() data: EditTagGroupsRequestDto): Promise<boolean> {
     return await this.groupTagsService.editTagGroups(tagId, data);
   }
@@ -83,7 +83,7 @@ export class GroupTagsController {
   @Post(':tagId/groups')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.EDIT_GROUPS, Permission.ADMIN)
+  @Permissions(Permission.MANAGE_GROUPS, Permission.ADMIN)
   async addTagGroups(@Param('tagId') tagId: string, @Body() data: EditTagGroupsRequestDto): Promise<boolean> {
     return await this.groupTagsService.addTagGroups(tagId, data);
   }
@@ -91,7 +91,7 @@ export class GroupTagsController {
   @Delete(':tagId/groups/:groupId')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.EDIT_GROUPS, Permission.ADMIN)
+  @Permissions(Permission.MANAGE_GROUPS, Permission.ADMIN)
   async deleteGroupFromTag(
     @Param('tagId') tagId: string,
     @Param('groupId') groupId: string,

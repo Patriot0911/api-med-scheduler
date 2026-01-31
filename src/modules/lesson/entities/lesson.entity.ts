@@ -1,8 +1,8 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, ManyToOne } from 'typeorm';
-import { UserEntity } from 'src/modules/users/entities/user.entity';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
 import { LessonsGroupEntity } from './lessons-group.entity';
 import { SemesterEntity } from 'src/modules/semester/entities/semester.entity';
-import { StudentGroupEntity } from 'src/modules/student-groups/entities/student-group.entity';
+import { StudentGroupLessonEntity } from './student-group-lesson.entity';
+import { TeacherLessonEntity } from './teacher-lesson.entity';
 
 @Entity('lessons')
 export class LessonEntity {
@@ -12,7 +12,6 @@ export class LessonEntity {
   @Column({ type: 'timestamptz', nullable: true, })
   date: Date;
 
-  // minutes
   @Column({ type: 'int', })
   duration: number;
 
@@ -25,15 +24,23 @@ export class LessonEntity {
   @Column({ type: 'text', nullable: true, })
   note: string | null;
 
-  @ManyToMany(() => UserEntity, (user) => user.lessons)
-  teachers: UserEntity[];
+  @OneToMany(() => StudentGroupLessonEntity, (studentGroupLesson) => studentGroupLesson.lesson)
+  studentGroupLessons: StudentGroupLessonEntity[];
 
-  @ManyToMany(() => StudentGroupEntity, (studentGroup) => studentGroup.lessons)
-  studentGroups: StudentGroupEntity[];
+  @OneToMany(() => TeacherLessonEntity, (teacherLesson) => teacherLesson.lesson)
+  teacherLessons: TeacherLessonEntity[];
 
-  @ManyToOne(() => SemesterEntity, (semester) => semester.lessons)
+  @ManyToOne(() => SemesterEntity, (semester) => semester.lessons, { nullable: true })
+  @JoinColumn({ name: 'semester_id' })
   semester: SemesterEntity;
 
+  @Column({ name: 'semester_id', nullable: true })
+  semesterId?: string;
+
   @ManyToOne(() => LessonsGroupEntity, (group) => group.lessons)
+  @JoinColumn({ name: 'lesson_group_id' })
   lessonGroup: LessonsGroupEntity;
+
+  @Column({ name: 'lesson_group_id' })
+  lessonGroupId: string;
 }
