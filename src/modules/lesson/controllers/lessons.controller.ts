@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { JwtAccessGuard } from "src/modules/auth/guards/access-refresh.guard";
 import { LessonsService } from "../services/lessons.service";
@@ -36,23 +36,23 @@ export class LessonsController {
   @Post()
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.ADMIN)
+  @Permissions(Permission.ADMIN, Permission.MANAGE_LESSONS)
   async createLesson(@Body() dto: CreateLessonRequestDto): Promise<ILessonItemModel> {
     return await this.lessonsService.createLesson(dto);
   }
 
-  @Put(':lessonId')
+  @Patch(':lessonId')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.ADMIN)
-  async editLesson(@Param('lessonId') id: string, dto: EditLessonRequestDto): Promise<ILessonItemModel> {
+  @Permissions(Permission.ADMIN, Permission.MANAGE_LESSONS)
+  async editLesson(@Param('lessonId') id: string, @Body() dto: EditLessonRequestDto): Promise<ILessonItemModel> {
     return await this.lessonsService.editLesson(id, dto);
   }
 
   @Delete(':lessonId')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.ADMIN)
+  @Permissions(Permission.ADMIN, Permission.MANAGE_LESSONS)
   async deleteLesson(@Param('lessonId') id: string): Promise<void> {
     return await this.lessonsService.deleteLesson(id);
   }

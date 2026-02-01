@@ -1,4 +1,10 @@
-import { IEditLessonModel } from './edit-lesson.model';
-
-export interface ICreateLessonModel extends IEditLessonModel {
+export interface ICreateLessonModel {
+  name: string;
+  date: Date;
+  duration: number;
+  semesterId: string;
+  lessonGroupId?: string;
+  note?: string;
+  teacherIds: string[];
+  studentGroupIds: string[];
 };
