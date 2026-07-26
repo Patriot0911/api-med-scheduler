@@ -5,21 +5,17 @@ import { ILessonItemModel } from '../models/lessons/lesson-item.model';
 
 @Injectable()
 export class LessonsMapper {
-  // entityToDictionaryItem(entity: LessonsGroupEntity): ISemesterDictionaryItem {
-  //   const { id, name, } = entity;
-  //   return { id, name, };
-  // }
   entityToListItem(entity: LessonEntity): ILessonListItemModel {
-    const { name, id, date, } = entity;
-    return {
-      name, id, date,
-    };
+    return this.entityToItem(entity);
   }
 
   entityToItem(entity: LessonEntity): ILessonItemModel {
-    const { date, name, id, } = entity;
+    const { id, name, date, duration, delayedDate, note, semesterId, lessonGroupId, teacherLessons, studentGroupLessons, } = entity;
     return {
-      name, id, date,
+      id, name, date, duration, delayedDate, note, lessonGroupId,
+      semesterId: semesterId ?? null,
+      teacherIds: (teacherLessons ?? []).map((teacherLesson) => teacherLesson.teacherId),
+      studentGroupIds: (studentGroupLessons ?? []).map((studentGroupLesson) => studentGroupLesson.studentGroupId),
     };
   }
 }

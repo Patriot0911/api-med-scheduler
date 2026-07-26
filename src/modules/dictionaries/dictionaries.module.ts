@@ -4,12 +4,14 @@ import { RolesModule } from '../roles/roles.module';
 import { DictionariesService } from './services/dictionaries.service';
 import { SemesterModule } from '../semester/semester.module';
 import { StudentGroupsModule } from '../student-groups/student-groups.module';
+import { LessonModule } from '../lesson/lesson.module';
 
 @Module({
   imports: [
     RolesModule,
     SemesterModule,
     StudentGroupsModule,
+    LessonModule,
   ],
   controllers: [DictionariesController,],
   providers: [DictionariesService,],

@@ -17,7 +17,6 @@ import { LessonModule } from './modules/lesson/lesson.module';
     UsersModule,
     LessonModule,
     SemesterModule,
-    LessonModule,
     StudentGroupsModule,
     DictionariesModule,
     ConfigModule.forRoot({

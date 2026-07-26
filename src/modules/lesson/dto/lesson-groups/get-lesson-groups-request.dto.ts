@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsDateString, IsNumber, IsOptional, IsString, Max, Min } from "class-validator";
+import { IsNumber, IsOptional, IsString, Max, Min } from "class-validator";
 import { IGetLessonGroupsFiltersModel } from '../../models/lesson-groups/get-lesson-groups-filter.model';
 
 export class GetLessonGroupsRequestDto implements IGetLessonGroupsFiltersModel {
@@ -16,21 +16,6 @@ export class GetLessonGroupsRequestDto implements IGetLessonGroupsFiltersModel {
 
   @IsOptional()
   @IsString()
-  @ApiPropertyOptional({ type: 'string', description: 'Teacher`s name' })
-  teacher?: string;
-
-  @IsOptional()
-  @IsString()
-  @ApiPropertyOptional({ type: 'string', description: 'Group`s name', example: 'XX-123' })
-  group?: string;
-
-  @ApiProperty({ required: false})
-  @IsDateString()
-  @IsOptional()
-  dateFrom?: Date;
-
-  @ApiProperty({ required: false})
-  @IsDateString()
-  @IsOptional()
-  dateTo?: Date;
+  @ApiPropertyOptional({ type: 'string', description: 'Search string' })
+  search?: string;
 }

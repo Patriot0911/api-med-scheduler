@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Not, Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { LessonEntity } from '../entities/lesson.entity';
 import { IGetLessonsFiltersModel } from '../models/lessons/get-lessons-filter.model';
 import { IGenericListPayloadResponse } from 'src/shared/models/generic-list-payload.response';
@@ -26,25 +26,43 @@ export class LessonsService {
 
   async getAll(params: IGetLessonsFiltersModel): Promise<IGenericListPayloadResponse<ILessonListItemModel>> {
     const { page, pageSize, dateFrom, dateTo, group, teacher, } = params;
-    const semQb = this.lessonsRepository
+    const lessonsQb = this.lessonsRepository
       .createQueryBuilder('ls')
+      .leftJoin('ls.teacherLessons', 'teacherLessons')
+      .leftJoin('teacherLessons.teacher', 'teacher')
+      .leftJoin('ls.studentGroupLessons', 'studentGroupLessons')
+      .leftJoin('studentGroupLessons.studentGroup', 'studentGroup')
       .skip((page - 1) * pageSize)
       .take(pageSize);
 
     if (dateFrom) {
-      semQb.andWhere('(ls.date >= :dateFrom)', { dateFrom, });
+      lessonsQb.andWhere('(ls.date >= :dateFrom)', { dateFrom, });
     }
     if (dateTo) {
-      semQb.andWhere('(ls.date <= :dateTo)', { dateTo, });
+      lessonsQb.andWhere('(ls.date <= :dateTo)', { dateTo, });
+    }
+    if (teacher) {
+      lessonsQb.andWhere('teacher.fullName LIKE :teacher', { teacher: `%${teacher}%`, });
+    }
+    if (group) {
+      lessonsQb.andWhere('studentGroup.name LIKE :group', { group: `%${group}%`, });
     }
 
-    const [lsData, total] = await semQb
+    const [lsData, total] = await lessonsQb
       .distinct(true)
       .getManyAndCount();
 
+    const lessonsWithRelations = lsData.length
+      ? await this.lessonsRepository.find({
+        where: { id: In(lsData.map((lesson) => lesson.id)), },
+        relations: { teacherLessons: true, studentGroupLessons: true, },
+      })
+      : [];
+    const lessonsById = new Map(lessonsWithRelations.map((lesson) => [lesson.id, lesson]));
+
     return {
       items: lsData.map(
-        (s) => this.lessonsMapper.entityToListItem(s)
+        (s) => this.lessonsMapper.entityToListItem(lessonsById.get(s.id) ?? s)
       ),
       meta: { count: total, },
     };
@@ -52,20 +70,22 @@ export class LessonsService {
 
   async getById(id: string): Promise<ILessonItemModel> {
     const lesson = await this.lessonsRepository.findOneOrFail({
-      where: { id, }
+      where: { id, },
+      relations: { teacherLessons: true, studentGroupLessons: true, },
     });
     return this.lessonsMapper.entityToItem(lesson);
   }
 
-  async createLesson({ teacherIds, studentGroupIds, ...data }: ICreateLessonModel) {
+  async createLesson({ teacherIds, studentGroupIds, ...data }: ICreateLessonModel): Promise<ILessonItemModel> {
     const lesson = this.lessonsRepository.create({
       ...data,
     },);
+    const createdLesson = await this.lessonsRepository.save(lesson);
 
     if (teacherIds && teacherIds.length > 0) {
       const lessonTeachers = teacherIds.map((teacherId) =>
         this.teacherLessonRepository.create({
-          lessonId: lesson.id,
+          lessonId: createdLesson.id,
           teacherId: teacherId,
         }),
       );
@@ -74,9 +94,9 @@ export class LessonsService {
     }
 
     if (studentGroupIds && studentGroupIds.length > 0) {
-      const lessonGroups = teacherIds.map((groupId) =>
+      const lessonGroups = studentGroupIds.map((groupId) =>
         this.studentGroupLessonRepository.create({
-          lessonId: lesson.id,
+          lessonId: createdLesson.id,
           studentGroupId: groupId,
         }),
       );
@@ -84,8 +104,7 @@ export class LessonsService {
       await this.studentGroupLessonRepository.save(lessonGroups);
     }
 
-    const createdLessons = await this.lessonsRepository.save(lesson);
-    return this.lessonsMapper.entityToItem(createdLessons);
+    return this.getById(createdLesson.id);
   }
 
   async editLesson(lessonId: string, { teacherIds, studentGroupIds, ...data }: IEditLessonModel): Promise<ILessonItemModel> {
@@ -109,7 +128,7 @@ export class LessonsService {
     }
 
     if (studentGroupIds) {
-      await this.teacherLessonRepository.delete({ lessonId });
+      await this.studentGroupLessonRepository.delete({ lessonId });
 
       if (studentGroupIds.length > 0) {
         await this.studentGroupLessonRepository.insert(
@@ -121,9 +140,9 @@ export class LessonsService {
       }
     }
 
-    const savedLesson = await this.lessonsRepository.save(lesson);
+    await this.lessonsRepository.save(lesson);
 
-    return this.lessonsMapper.entityToItem(savedLesson);
+    return this.getById(lessonId);
   }
 
   async deleteLesson(lessonId: string): Promise<void> {

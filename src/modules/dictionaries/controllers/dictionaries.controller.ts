@@ -13,6 +13,8 @@ import { SemestersService } from 'src/modules/semester/services/semesters.servic
 import { ISemesterDictionaryItem } from 'src/modules/semester/models/semester-dictionary-item.model';
 import { StudentGroupsService } from 'src/modules/student-groups/services/student-groups.service';
 import { IGroupDictionaryItem } from 'src/modules/student-groups/models/group-dictionary-item.model';
+import { LessonsGroupsService } from 'src/modules/lesson/services/lessons-groups.service';
+import { ILessonGroupDictionaryItem } from 'src/modules/lesson/models/lesson-groups/lesson-group-dictionary-item.model';
 
 @ApiTags('Dictionaries')
 @Controller('api/dictionaries')
@@ -23,6 +25,7 @@ export class DictionariesController {
     private readonly groupTagsService: GroupTagsService,
     private readonly semestersService: SemestersService,
     private readonly studentGroupsService: StudentGroupsService,
+    private readonly lessonsGroupsService: LessonsGroupsService,
   ) {}
 
   @Get('permissions')
@@ -60,5 +63,12 @@ export class DictionariesController {
   @UseGuards(JwtAccessGuard)
   async getSemestersDictionary(): Promise<ISemesterDictionaryItem[]> {
     return await this.semestersService.getSemesterDictionary();
+  }
+
+  @Get('lesson-groups')
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard)
+  async getLessonGroupsDictionary(): Promise<ILessonGroupDictionaryItem[]> {
+    return await this.lessonsGroupsService.getLessonGroupsDictionary();
   }
 }
