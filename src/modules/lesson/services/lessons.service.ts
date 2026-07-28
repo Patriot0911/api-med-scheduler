@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { LessonEntity } from '../entities/lesson.entity';
@@ -9,8 +9,10 @@ import { ILessonListItemModel } from '../models/lessons/lesson-list-item.model';
 import { ILessonItemModel } from '../models/lessons/lesson-item.model';
 import { ICreateLessonModel } from '../models/lessons/create-lesson.model';
 import { IEditLessonModel } from '../models/lessons/edit-lesson.model';
+import { ITeacherUpdateLessonModel } from '../models/lessons/teacher-update-lesson.model';
 import { TeacherLessonEntity } from '../entities/teacher-lesson.entity';
 import { StudentGroupLessonEntity } from '../entities/student-group-lesson.entity';
+import { Permission } from 'src/shared/models/permission.enum';
 
 @Injectable()
 export class LessonsService {
@@ -138,6 +140,36 @@ export class LessonsService {
           })),
         );
       }
+    }
+
+    await this.lessonsRepository.save(lesson);
+
+    return this.getById(lessonId);
+  }
+
+  async updateLessonAsTeacher(
+    lessonId: string,
+    teacherId: string,
+    permissions: Permission[],
+    data: ITeacherUpdateLessonModel,
+  ): Promise<ILessonItemModel> {
+    const lesson = await this.lessonsRepository.findOneOrFail({
+      where: { id: lessonId, },
+      relations: { teacherLessons: true, },
+    });
+
+    const isAssignedTeacher = lesson.teacherLessons.some((teacherLesson) => teacherLesson.teacherId === teacherId);
+    const hasManageAccess = permissions.includes(Permission.ADMIN) || permissions.includes(Permission.MANAGE_LESSONS);
+
+    if (!isAssignedTeacher && !hasManageAccess) {
+      throw new ForbiddenException('Only a teacher assigned to this lesson can update it');
+    }
+
+    if (data.note !== undefined) {
+      lesson.note = data.note;
+    }
+    if (data.delayedDate !== undefined) {
+      lesson.delayedDate = data.delayedDate;
     }
 
     await this.lessonsRepository.save(lesson);

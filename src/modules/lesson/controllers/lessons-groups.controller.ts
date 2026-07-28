@@ -11,6 +11,10 @@ import { ILessonGroupListItemModel } from '../models/lesson-groups/lesson-group-
 import { ILessonGroupItemModel } from '../models/lesson-groups/lesson-group-item.model';
 import { CreateLessonGroupRequestDto } from '../dto/lesson-groups/create-lesson-group-request.dto';
 import { EditLessonGroupRequestDto } from '../dto/lesson-groups/edit-lesson-group-request.dto';
+import { GenerateLessonSeriesRequestDto } from '../dto/lesson-groups/generate-lesson-series-request.dto';
+import { CreateLessonGroupWithLessonsRequestDto } from '../dto/lesson-groups/create-lesson-group-with-lessons-request.dto';
+import { ILessonItemModel } from '../models/lessons/lesson-item.model';
+import { ILessonGroupWithLessonsModel } from '../models/lesson-groups/lesson-group-with-lessons.model';
 
 @ApiTags('Lessons Groups')
 @Controller('api/lessons-groups')
@@ -60,5 +64,32 @@ export class LessonsGroupsController {
   @Permissions(Permission.ADMIN)
   async deleteLessonGroup(@Param('lessonGroupId') lessonGroupId: string): Promise<ILessonGroupItemModel> {
     return await this.lessonsGroups.deleteLessonGroup(lessonGroupId);
+  }
+
+  @Post('with-lessons')
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard, PermissionsGuard)
+  @Permissions(Permission.ADMIN, Permission.MANAGE_LESSONS)
+  async createLessonGroupWithLessons(@Body() dto: CreateLessonGroupWithLessonsRequestDto): Promise<ILessonGroupWithLessonsModel> {
+    return await this.lessonsGroups.createLessonGroupWithLessons(dto);
+  }
+
+  @Post('generate-series')
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard, PermissionsGuard)
+  @Permissions(Permission.ADMIN, Permission.MANAGE_LESSONS)
+  async generateLessonSeries(@Body() dto: GenerateLessonSeriesRequestDto): Promise<ILessonItemModel[]> {
+    return await this.lessonsGroups.generateLessonSeries(dto);
+  }
+
+  @Put(':lessonGroupId/lessons/:lessonId')
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard, PermissionsGuard)
+  @Permissions(Permission.ADMIN, Permission.MANAGE_LESSONS)
+  async assignLessonToGroup(
+    @Param('lessonGroupId') lessonGroupId: string,
+    @Param('lessonId') lessonId: string,
+  ): Promise<boolean> {
+    return await this.lessonsGroups.assignLessonToGroup(lessonGroupId, lessonId);
   }
 }

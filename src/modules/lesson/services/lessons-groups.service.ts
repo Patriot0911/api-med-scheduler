@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessonsGroupEntity } from '../entities/lessons-group.entity';
 import { Repository } from 'typeorm';
@@ -10,13 +10,30 @@ import { ILessonGroupItemModel } from '../models/lesson-groups/lesson-group-item
 import { ICreateLessonGroupModel } from '../models/lesson-groups/create-lesson-group.model';
 import { IEditLessonGroupModel } from '../models/lesson-groups/edit-lesson-group.model';
 import { ILessonGroupDictionaryItem } from '../models/lesson-groups/lesson-group-dictionary-item.model';
+import { LessonEntity } from '../entities/lesson.entity';
+import { LessonsService } from './lessons.service';
+import { IGenerateLessonSeriesModel } from '../models/lesson-groups/generate-lesson-series.model';
+import { ICreateLessonGroupWithLessonsModel } from '../models/lesson-groups/create-lesson-group-with-lessons.model';
+import { ILessonGroupWithLessonsModel } from '../models/lesson-groups/lesson-group-with-lessons.model';
+import { ILessonItemModel } from '../models/lessons/lesson-item.model';
+
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+interface IRecurrenceModel {
+  intervalDays?: number;
+  repeatCount?: number;
+  dates?: Date[];
+}
 
 @Injectable()
 export class LessonsGroupsService {
   constructor(
     @InjectRepository(LessonsGroupEntity)
     private lessonGroupsRepository: Repository<LessonsGroupEntity>,
+    @InjectRepository(LessonEntity)
+    private lessonsRepository: Repository<LessonEntity>,
     private readonly lessonGroupsMapper: LessonGroupsMapper,
+    private readonly lessonsService: LessonsService,
   ) {}
 
   async getLessonGroupsDictionary(): Promise<ILessonGroupDictionaryItem[]> {
@@ -84,5 +101,81 @@ export class LessonsGroupsService {
     });
     const removedLessonGroup = await this.lessonGroupsRepository.remove(lessonGroupData);
     return this.lessonGroupsMapper.entityToItem(removedLessonGroup);
+  }
+
+  async assignLessonToGroup(lessonGroupId: string, lessonId: string): Promise<boolean> {
+    await this.lessonGroupsRepository.findOneOrFail({
+      where: { id: lessonGroupId, },
+    });
+    await this.lessonsService.editLesson(lessonId, { lessonGroupId, });
+    return true;
+  }
+
+  async generateLessonSeries(data: IGenerateLessonSeriesModel): Promise<ILessonItemModel[]> {
+    const baseLesson = await this.lessonsRepository.findOneOrFail({
+      where: { id: data.baseLessonId, },
+      relations: { teacherLessons: true, studentGroupLessons: true, },
+    });
+
+    const dates = this.resolveRecurrenceDates(baseLesson.date, 1, data);
+
+    const createdLessons: ILessonItemModel[] = [];
+    for (const date of dates) {
+      const createdLesson = await this.lessonsService.createLesson({
+        name: baseLesson.name,
+        date,
+        duration: baseLesson.duration,
+        semesterId: baseLesson.semesterId!,
+        lessonGroupId: baseLesson.lessonGroupId,
+        note: baseLesson.note ?? undefined,
+        teacherIds: baseLesson.teacherLessons.map((teacherLesson) => teacherLesson.teacherId),
+        studentGroupIds: baseLesson.studentGroupLessons.map((studentGroupLesson) => studentGroupLesson.studentGroupId),
+      });
+      createdLessons.push(createdLesson);
+    }
+
+    return createdLessons;
+  }
+
+  async createLessonGroupWithLessons(data: ICreateLessonGroupWithLessonsModel): Promise<ILessonGroupWithLessonsModel> {
+    const dates = this.resolveRecurrenceDates(data.date, 0, data);
+
+    const newLessonGroup = this.lessonGroupsRepository.create({
+      name: data.name,
+      note: data.note,
+    },);
+    const createdLessonGroup = await this.lessonGroupsRepository.save(newLessonGroup);
+
+    const lessons: ILessonItemModel[] = [];
+    for (const date of dates) {
+      const createdLesson = await this.lessonsService.createLesson({
+        name: data.name,
+        date,
+        duration: data.duration,
+        semesterId: data.semesterId,
+        lessonGroupId: createdLessonGroup.id,
+        note: data.note,
+        teacherIds: data.teacherIds,
+        studentGroupIds: data.studentGroupIds,
+      });
+      lessons.push(createdLesson);
+    }
+
+    return {
+      lessonGroup: this.lessonGroupsMapper.entityToItem(createdLessonGroup),
+      lessons,
+    };
+  }
+
+  private resolveRecurrenceDates(anchorDate: Date, startIndex: number, recurrence: IRecurrenceModel): Date[] {
+    if (recurrence.dates && recurrence.dates.length > 0) {
+      return recurrence.dates;
+    }
+    if (recurrence.intervalDays && recurrence.repeatCount) {
+      return Array.from({ length: recurrence.repeatCount, }, (_, index) =>
+        new Date(anchorDate.getTime() + (startIndex + index) * recurrence.intervalDays! * DAY_IN_MS),
+      );
+    }
+    throw new BadRequestException('Provide either `dates` or `intervalDays` together with `repeatCount`');
   }
 }

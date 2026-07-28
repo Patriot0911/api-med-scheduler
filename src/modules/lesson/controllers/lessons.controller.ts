@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { JwtAccessGuard } from "src/modules/auth/guards/access-refresh.guard";
 import { LessonsService } from "../services/lessons.service";
@@ -11,6 +11,8 @@ import { Permissions } from 'src/modules/auth/decorator/roles.decorator';
 import { Permission } from 'src/shared/models/permission.enum';
 import { CreateLessonRequestDto } from '../dto/lessons/create-lesson-request.dto';
 import { EditLessonRequestDto } from '../dto/lessons/edit-lesson-request.dto';
+import { TeacherUpdateLessonRequestDto } from '../dto/lessons/teacher-update-lesson-request.dto';
+import { IAccessTokenPayload } from 'src/modules/auth/models/access-token-payload.model';
 
 @ApiTags('Lessons')
 @Controller('api/lessons')
@@ -55,5 +57,17 @@ export class LessonsController {
   @Permissions(Permission.ADMIN, Permission.MANAGE_LESSONS)
   async deleteLesson(@Param('lessonId') id: string): Promise<void> {
     return await this.lessonsService.deleteLesson(id);
+  }
+
+  @Patch(':lessonId/teacher-update')
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard)
+  async updateLessonAsTeacher(
+    @Req() request,
+    @Param('lessonId') id: string,
+    @Body() dto: TeacherUpdateLessonRequestDto,
+  ): Promise<ILessonItemModel> {
+    const { sub, permissions, } = <IAccessTokenPayload> request.user;
+    return await this.lessonsService.updateLessonAsTeacher(id, sub, permissions, dto);
   }
 }
