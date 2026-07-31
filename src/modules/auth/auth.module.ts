@@ -11,11 +11,13 @@ import { AuthService } from './services/auth.service';
 import { RolesModule } from '../roles/roles.module';
 import { RoleEntity } from '../roles/entities/role.entity';
 import { AuthMapper } from './mappers/auth.mapper';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
     PassportModule,
     RolesModule,
+    UsersModule,
     JwtModule,
     TypeOrmModule.forFeature([
       UserEntity,

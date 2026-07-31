@@ -11,4 +11,7 @@ export default registerAs('auth', () => ({
       refresh: process.env.JWT_REFRESH_SECRET || 'jwt_refresh_secret_key',
     },
   },
+  passwordReset: {
+    ttl: Number(process.env.PASSWORD_RESET_TTL) || 86400,
+  },
 }));

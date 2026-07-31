@@ -14,12 +14,15 @@ import { AuthResponseDto } from "../dto/auth-response.dto";
 import { UserPayloadDto } from "../dto/user-payload.dto";
 import { Feature } from 'src/shared/decorator/features.decorator';
 import { FeatureGuard } from 'src/shared/guards/features.guard';
+import { ResetPasswordDto } from '../dto/reset-password.dto';
+import { PasswordResetService } from 'src/modules/users/services/password-reset.service';
 
 @ApiTags('Auth')
 @Controller('api/auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
+    private readonly passwordResetService: PasswordResetService,
   ) {}
 
   @Post('login')
@@ -60,5 +63,10 @@ export class AuthController {
   async me(@Req() request): Promise<IUserPayload> {
     const { sub, } = <IAccessTokenPayload> request.user;
     return await this.authService.getMe(sub);
+  }
+
+  @Post('reset-password')
+  async resetPassword(@Body() data: ResetPasswordDto): Promise<boolean> {
+    return await this.passwordResetService.resetPassword(data.token, data.newPassword);
   }
 }
