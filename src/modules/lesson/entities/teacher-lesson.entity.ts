@@ -1,6 +1,6 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { LessonEntity } from './lesson.entity';
-import { UserEntity } from 'src/modules/users/entities/user.entity';
+import { TeacherEntity } from 'src/modules/users/entities/teacher.entity';
 
 @Entity('teacher_lesson')
 export class TeacherLessonEntity {
@@ -16,11 +16,11 @@ export class TeacherLessonEntity {
   @Column({ name: 'lesson_id' })
   lessonId: string;
 
-  @ManyToOne(() => UserEntity, (user) => user.teacherLessons, {
+  @ManyToOne(() => TeacherEntity, (teacher) => teacher.teacherLessons, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'teacher_id' })
-  teacher: UserEntity;
+  teacher: TeacherEntity;
 
   @Column({ name: 'teacher_id' })
   teacherId: string;

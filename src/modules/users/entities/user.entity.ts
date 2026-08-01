@@ -1,6 +1,7 @@
-import { TeacherLessonEntity } from 'src/modules/lesson/entities/teacher-lesson.entity';
 import { RoleEntity } from 'src/modules/roles/entities/role.entity';
-import { Column, CreateDateColumn, Entity, JoinTable, ManyToMany, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinTable, ManyToMany, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { TeacherEntity } from './teacher.entity';
+import { StudentEntity } from './student.entity';
 
 @Entity('users')
 export class UserEntity {
@@ -33,6 +34,9 @@ export class UserEntity {
   })
   roles: RoleEntity[];
 
-  @OneToMany(() => TeacherLessonEntity, (lesson) => lesson.teacher)
-  teacherLessons: TeacherLessonEntity[];
+  @OneToOne(() => TeacherEntity, (teacher) => teacher.user)
+  teacher?: TeacherEntity;
+
+  @OneToOne(() => StudentEntity, (student) => student.user)
+  student?: StudentEntity;
 }

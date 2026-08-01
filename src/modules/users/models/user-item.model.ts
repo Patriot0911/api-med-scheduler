@@ -1,3 +1,6 @@
+import { ITeacherProfileModel } from './teacher-profile.model';
+import { IStudentProfileModel } from './student-profile.model';
+
 export interface IUserItemModel {
   id: string;
   email: string;
@@ -5,4 +8,6 @@ export interface IUserItemModel {
   roleIds: string[];
   createdAt: Date;
   lastLoginAt: Date | null;
+  teacher: ITeacherProfileModel | null;
+  student: IStudentProfileModel | null;
 };

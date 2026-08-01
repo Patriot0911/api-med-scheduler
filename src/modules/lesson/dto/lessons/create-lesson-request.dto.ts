@@ -35,7 +35,7 @@ export class CreateLessonRequestDto implements ICreateLessonModel {
   @IsOptional()
   delayedDate?: Date;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Teacher profile ids (TeacherEntity.id, not user id)' })
   @IsArray()
   @IsString({ each: true })
   teacherIds: string[];

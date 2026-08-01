@@ -12,6 +12,7 @@ import { IEditLessonModel } from '../models/lessons/edit-lesson.model';
 import { ITeacherUpdateLessonModel } from '../models/lessons/teacher-update-lesson.model';
 import { TeacherLessonEntity } from '../entities/teacher-lesson.entity';
 import { StudentGroupLessonEntity } from '../entities/student-group-lesson.entity';
+import { TeacherEntity } from 'src/modules/users/entities/teacher.entity';
 import { Permission } from 'src/shared/models/permission.enum';
 
 @Injectable()
@@ -23,6 +24,8 @@ export class LessonsService {
     private teacherLessonRepository: Repository<TeacherLessonEntity>,
     @InjectRepository(StudentGroupLessonEntity)
     private studentGroupLessonRepository: Repository<StudentGroupLessonEntity>,
+    @InjectRepository(TeacherEntity)
+    private teachersRepository: Repository<TeacherEntity>,
     private readonly lessonsMapper: LessonsMapper,
   ) {}
 
@@ -32,6 +35,7 @@ export class LessonsService {
       .createQueryBuilder('ls')
       .leftJoin('ls.teacherLessons', 'teacherLessons')
       .leftJoin('teacherLessons.teacher', 'teacher')
+      .leftJoin('teacher.user', 'teacherUser')
       .leftJoin('ls.studentGroupLessons', 'studentGroupLessons')
       .leftJoin('studentGroupLessons.studentGroup', 'studentGroup')
       .skip((page - 1) * pageSize)
@@ -44,7 +48,7 @@ export class LessonsService {
       lessonsQb.andWhere('(ls.date <= :dateTo)', { dateTo, });
     }
     if (teacher) {
-      lessonsQb.andWhere('teacher.fullName LIKE :teacher', { teacher: `%${teacher}%`, });
+      lessonsQb.andWhere('teacherUser.fullName LIKE :teacher', { teacher: `%${teacher}%`, });
     }
     if (group) {
       lessonsQb.andWhere('studentGroup.name LIKE :group', { group: `%${group}%`, });
@@ -149,7 +153,7 @@ export class LessonsService {
 
   async updateLessonAsTeacher(
     lessonId: string,
-    teacherId: string,
+    userId: string,
     permissions: Permission[],
     data: ITeacherUpdateLessonModel,
   ): Promise<ILessonItemModel> {
@@ -158,7 +162,12 @@ export class LessonsService {
       relations: { teacherLessons: true, },
     });
 
-    const isAssignedTeacher = lesson.teacherLessons.some((teacherLesson) => teacherLesson.teacherId === teacherId);
+    const teacherProfile = await this.teachersRepository.findOne({
+      where: { userId, },
+    });
+
+    const isAssignedTeacher = !!teacherProfile
+      && lesson.teacherLessons.some((teacherLesson) => teacherLesson.teacherId === teacherProfile.id);
     const hasManageAccess = permissions.includes(Permission.ADMIN) || permissions.includes(Permission.MANAGE_LESSONS);
 
     if (!isAssignedTeacher && !hasManageAccess) {

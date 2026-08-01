@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { JwtAccessGuard } from "src/modules/auth/guards/access-refresh.guard";
 import { PermissionsGuard } from "src/modules/auth/guards/permission.guard";
@@ -10,8 +10,12 @@ import { UsersService } from '../services/users.service';
 import { PasswordResetService } from '../services/password-reset.service';
 import { GetUsersRequestDto } from '../dto/get-users-request.dto';
 import { CreateUserRequestDto } from '../dto/create-user-request.dto';
+import { CreateStudentProfileRequestDto } from '../dto/create-student-profile-request.dto';
+import { EditStudentProfileRequestDto } from '../dto/edit-student-profile-request.dto';
 import { IUserListItemModel } from '../models/user-list-item.model';
 import { IUserItemModel } from '../models/user-item.model';
+import { ITeacherProfileModel } from '../models/teacher-profile.model';
+import { IStudentProfileModel } from '../models/student-profile.model';
 import { IPasswordResetTokenModel } from '../models/password-reset-token.model';
 
 @ApiTags('Users')
@@ -53,5 +57,51 @@ export class UsersController {
   @Permissions(Permission.MANAGE_USERS, Permission.ADMIN)
   async createPasswordResetToken(@Param('userId') userId: string): Promise<IPasswordResetTokenModel> {
     return await this.passwordResetService.createResetToken(userId);
+  }
+
+  @Post(':userId/teacher')
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard, PermissionsGuard)
+  @Permissions(Permission.MANAGE_USERS, Permission.ADMIN)
+  async createTeacherProfile(@Param('userId') userId: string): Promise<ITeacherProfileModel> {
+    return await this.usersService.createTeacherProfile(userId);
+  }
+
+  @Delete(':userId/teacher')
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard, PermissionsGuard)
+  @Permissions(Permission.MANAGE_USERS, Permission.ADMIN)
+  async deleteTeacherProfile(@Param('userId') userId: string): Promise<ITeacherProfileModel> {
+    return await this.usersService.deleteTeacherProfile(userId);
+  }
+
+  @Post(':userId/student')
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard, PermissionsGuard)
+  @Permissions(Permission.MANAGE_USERS, Permission.ADMIN)
+  async createStudentProfile(
+    @Param('userId') userId: string,
+    @Body() data: CreateStudentProfileRequestDto,
+  ): Promise<IStudentProfileModel> {
+    return await this.usersService.createStudentProfile(userId, data);
+  }
+
+  @Put(':userId/student')
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard, PermissionsGuard)
+  @Permissions(Permission.MANAGE_USERS, Permission.ADMIN)
+  async editStudentProfile(
+    @Param('userId') userId: string,
+    @Body() data: EditStudentProfileRequestDto,
+  ): Promise<IStudentProfileModel> {
+    return await this.usersService.editStudentProfile(userId, data);
+  }
+
+  @Delete(':userId/student')
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard, PermissionsGuard)
+  @Permissions(Permission.MANAGE_USERS, Permission.ADMIN)
+  async deleteStudentProfile(@Param('userId') userId: string): Promise<IStudentProfileModel> {
+    return await this.usersService.deleteStudentProfile(userId);
   }
 }

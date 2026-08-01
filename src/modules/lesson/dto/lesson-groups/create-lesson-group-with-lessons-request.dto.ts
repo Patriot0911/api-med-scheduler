@@ -31,7 +31,7 @@ export class CreateLessonGroupWithLessonsRequestDto implements ICreateLessonGrou
   @ApiProperty({ example: 50, description: 'lesson`s duration in minutes' })
   duration: number;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Teacher profile ids (TeacherEntity.id, not user id)' })
   @IsArray()
   @IsString({ each: true })
   teacherIds: string[];
