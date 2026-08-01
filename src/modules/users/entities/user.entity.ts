@@ -1,6 +1,6 @@
 import { TeacherLessonEntity } from 'src/modules/lesson/entities/teacher-lesson.entity';
 import { RoleEntity } from 'src/modules/roles/entities/role.entity';
-import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, JoinTable, OneToMany } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinTable, ManyToMany, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('users')
 export class UserEntity {
@@ -18,6 +18,12 @@ export class UserEntity {
 
   @Column({ type: 'text', nullable: true, })
   refreshToken: string | null;
+
+  @CreateDateColumn({ type: 'timestamptz', })
+  createdAt: Date;
+
+  @Column({ type: 'timestamptz', nullable: true, })
+  lastLoginAt: Date | null;
 
   @ManyToMany(() => RoleEntity, (role) => role.users)
   @JoinTable({

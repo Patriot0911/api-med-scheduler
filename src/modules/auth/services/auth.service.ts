@@ -60,6 +60,7 @@ export class AuthService {
       roles
     );
     await this.updateRefreshToken(userData.id, tokens.refreshToken);
+    await this.markUserLoggedIn(userData.id);
     return this.authMapper.entitiesToAuth(tokens, { ...userData, roles: userRoles, });
   }
 
@@ -84,6 +85,7 @@ export class AuthService {
       roles
     );
     await this.updateRefreshToken(createdUser.id, tokens.refreshToken);
+    await this.markUserLoggedIn(createdUser.id);
     return this.authMapper.entitiesToAuth(tokens, createdUser);
   }
 
@@ -123,6 +125,10 @@ export class AuthService {
   async updateRefreshToken(userId: string, refreshToken: string) {
     const hashed = await this.passwordService.hash(refreshToken);
     await this.usersRepository.update({ id: userId, }, { refreshToken: hashed, });
+  }
+
+  async markUserLoggedIn(userId: string): Promise<void> {
+    await this.usersRepository.update({ id: userId, }, { lastLoginAt: new Date(), });
   }
 
   async generateTokens(userId: string, permissions: Permission[], roles: string[]) {

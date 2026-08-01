@@ -10,9 +10,10 @@ export class UsersMapper {
   }
 
   entityToItem(user: UserEntity): IUserItemModel {
-    const { id, email, fullName, roles, } = user;
+    const { id, email, fullName, roles, createdAt, lastLoginAt, } = user;
     return {
-      id, email, fullName,
+      id, email, fullName, createdAt,
+      lastLoginAt: lastLoginAt ?? null,
       roleIds: (roles ?? []).map((role) => role.id),
     };
   }

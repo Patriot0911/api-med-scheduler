@@ -3,4 +3,6 @@ export interface IUserItemModel {
   email: string;
   fullName: string;
   roleIds: string[];
+  createdAt: Date;
+  lastLoginAt: Date | null;
 };
