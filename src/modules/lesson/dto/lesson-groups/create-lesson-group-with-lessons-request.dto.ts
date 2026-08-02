@@ -1,7 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ArrayMaxSize, IsArray, IsDate, IsNumber, IsOptional, IsString, IsUUID, Max, Min, MinLength } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsDate, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Max, Min, MinLength } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ICreateLessonGroupWithLessonsModel } from '../../models/lesson-groups/create-lesson-group-with-lessons.model';
+import { LessonVisibility } from '../../models/lesson-visibility.enum';
 
 export class CreateLessonGroupWithLessonsRequestDto implements ICreateLessonGroupWithLessonsModel {
   @ApiProperty({ example: 'Анатомія, лекція' })
@@ -65,4 +66,13 @@ export class CreateLessonGroupWithLessonsRequestDto implements ICreateLessonGrou
   @Type(() => Date)
   @IsDate({ each: true })
   dates?: Date[];
+
+  @ApiPropertyOptional({
+    enum: LessonVisibility,
+    default: LessonVisibility.RESTRICTED,
+    description: 'public — visible to any authenticated user; teachers — visible to any teacher; restricted — visible only to the assigned teachers/groups (default)',
+  })
+  @IsOptional()
+  @IsEnum(LessonVisibility)
+  visibility?: LessonVisibility;
 }

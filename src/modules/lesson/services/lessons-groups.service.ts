@@ -130,6 +130,7 @@ export class LessonsGroupsService {
         note: baseLesson.note ?? undefined,
         teacherIds: baseLesson.teacherLessons.map((teacherLesson) => teacherLesson.teacherId),
         studentGroupIds: baseLesson.studentGroupLessons.map((studentGroupLesson) => studentGroupLesson.studentGroupId),
+        visibility: baseLesson.visibility,
       });
       createdLessons.push(createdLesson);
     }
@@ -157,6 +158,7 @@ export class LessonsGroupsService {
         note: data.note,
         teacherIds: data.teacherIds,
         studentGroupIds: data.studentGroupIds,
+        visibility: data.visibility,
       });
       lessons.push(createdLesson);
     }

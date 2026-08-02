@@ -1,3 +1,5 @@
+import { LessonVisibility } from '../lesson-visibility.enum';
+
 export interface ICreateLessonGroupWithLessonsModel {
   name: string;
   note?: string;
@@ -9,4 +11,5 @@ export interface ICreateLessonGroupWithLessonsModel {
   intervalDays?: number;
   repeatCount?: number;
   dates?: Date[];
+  visibility?: LessonVisibility;
 };

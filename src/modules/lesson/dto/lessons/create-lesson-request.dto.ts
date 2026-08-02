@@ -1,7 +1,8 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ICreateLessonModel } from '../../models/lessons/create-lesson.model';
-import { IsArray, IsDate, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsArray, IsDate, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import { LessonVisibility } from '../../models/lesson-visibility.enum';
 
 export class CreateLessonRequestDto implements ICreateLessonModel {
   @ApiProperty()
@@ -54,4 +55,13 @@ export class CreateLessonRequestDto implements ICreateLessonModel {
   @IsString()
   @IsOptional()
   note?: string;
+
+  @ApiPropertyOptional({
+    enum: LessonVisibility,
+    default: LessonVisibility.RESTRICTED,
+    description: 'public — visible to any authenticated user; teachers — visible to any teacher; restricted — visible only to the assigned teachers/groups (default)',
+  })
+  @IsOptional()
+  @IsEnum(LessonVisibility)
+  visibility?: LessonVisibility;
 }

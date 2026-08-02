@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Brackets, In, Repository, SelectQueryBuilder } from 'typeorm';
 import { LessonEntity } from '../entities/lesson.entity';
 import { IGetLessonsFiltersModel } from '../models/lessons/get-lessons-filter.model';
 import { IGenericListPayloadResponse } from 'src/shared/models/generic-list-payload.response';
@@ -10,9 +10,11 @@ import { ILessonItemModel } from '../models/lessons/lesson-item.model';
 import { ICreateLessonModel } from '../models/lessons/create-lesson.model';
 import { IEditLessonModel } from '../models/lessons/edit-lesson.model';
 import { ITeacherUpdateLessonModel } from '../models/lessons/teacher-update-lesson.model';
+import { LessonVisibility } from '../models/lesson-visibility.enum';
 import { TeacherLessonEntity } from '../entities/teacher-lesson.entity';
 import { StudentGroupLessonEntity } from '../entities/student-group-lesson.entity';
 import { TeacherEntity } from 'src/modules/users/entities/teacher.entity';
+import { StudentEntity } from 'src/modules/users/entities/student.entity';
 import { Permission } from 'src/shared/models/permission.enum';
 
 @Injectable()
@@ -26,10 +28,16 @@ export class LessonsService {
     private studentGroupLessonRepository: Repository<StudentGroupLessonEntity>,
     @InjectRepository(TeacherEntity)
     private teachersRepository: Repository<TeacherEntity>,
+    @InjectRepository(StudentEntity)
+    private studentsRepository: Repository<StudentEntity>,
     private readonly lessonsMapper: LessonsMapper,
   ) {}
 
-  async getAll(params: IGetLessonsFiltersModel): Promise<IGenericListPayloadResponse<ILessonListItemModel>> {
+  async getAll(
+    params: IGetLessonsFiltersModel,
+    userId: string,
+    permissions: Permission[],
+  ): Promise<IGenericListPayloadResponse<ILessonListItemModel>> {
     const { page, pageSize, dateFrom, dateTo, group, teacher, } = params;
     const lessonsQb = this.lessonsRepository
       .createQueryBuilder('ls')
@@ -53,6 +61,8 @@ export class LessonsService {
     if (group) {
       lessonsQb.andWhere('studentGroup.name LIKE :group', { group: `%${group}%`, });
     }
+
+    await this.applyVisibilityFilter(lessonsQb, userId, permissions);
 
     const [lsData, total] = await lessonsQb
       .distinct(true)
@@ -79,6 +89,17 @@ export class LessonsService {
       where: { id, },
       relations: { teacherLessons: true, studentGroupLessons: true, },
     });
+    return this.lessonsMapper.entityToItem(lesson);
+  }
+
+  async getByIdForUser(id: string, userId: string, permissions: Permission[]): Promise<ILessonItemModel> {
+    const lesson = await this.lessonsRepository.findOneOrFail({
+      where: { id, },
+      relations: { teacherLessons: true, studentGroupLessons: true, },
+    });
+
+    await this.assertLessonVisible(lesson, userId, permissions);
+
     return this.lessonsMapper.entityToItem(lesson);
   }
 
@@ -191,5 +212,82 @@ export class LessonsService {
       where: { id: lessonId, }
     });
     await this.lessonsRepository.remove(lessonData);
+  }
+
+  private hasManageLessonsAccess(permissions: Permission[]): boolean {
+    return permissions.includes(Permission.ADMIN) || permissions.includes(Permission.MANAGE_LESSONS);
+  }
+
+  private isLessonVisibleToUser(
+    lesson: Pick<LessonEntity, 'visibility' | 'teacherLessons' | 'studentGroupLessons'>,
+    teacherProfile: TeacherEntity | null,
+    studentProfile: StudentEntity | null,
+  ): boolean {
+    if (lesson.visibility === LessonVisibility.PUBLIC) {
+      return true;
+    }
+    if (lesson.visibility === LessonVisibility.TEACHERS) {
+      return !!teacherProfile;
+    }
+
+    const isAssignedTeacher = !!teacherProfile
+      && lesson.teacherLessons.some((teacherLesson) => teacherLesson.teacherId === teacherProfile.id);
+    const isInAssignedGroup = !!studentProfile?.studentGroupId
+      && lesson.studentGroupLessons.some((studentGroupLesson) => studentGroupLesson.studentGroupId === studentProfile.studentGroupId);
+
+    return isAssignedTeacher || isInAssignedGroup;
+  }
+
+  private async assertLessonVisible(lesson: LessonEntity, userId: string, permissions: Permission[]): Promise<void> {
+    if (this.hasManageLessonsAccess(permissions)) {
+      return;
+    }
+
+    const [teacherProfile, studentProfile] = await Promise.all([
+      this.teachersRepository.findOne({ where: { userId, }, }),
+      this.studentsRepository.findOne({ where: { userId, }, }),
+    ]);
+
+    if (!this.isLessonVisibleToUser(lesson, teacherProfile, studentProfile)) {
+      throw new ForbiddenException('You do not have access to this lesson');
+    }
+  }
+
+  private async applyVisibilityFilter(
+    qb: SelectQueryBuilder<LessonEntity>,
+    userId: string,
+    permissions: Permission[],
+  ): Promise<void> {
+    if (this.hasManageLessonsAccess(permissions)) {
+      return;
+    }
+
+    const [teacherProfile, studentProfile] = await Promise.all([
+      this.teachersRepository.findOne({ where: { userId, }, }),
+      this.studentsRepository.findOne({ where: { userId, }, }),
+    ]);
+
+    qb.andWhere(new Brackets((visibilityQb) => {
+      visibilityQb.where('ls.visibility = :publicVisibility', { publicVisibility: LessonVisibility.PUBLIC, });
+
+      if (teacherProfile) {
+        visibilityQb.orWhere('ls.visibility = :teachersVisibility', { teachersVisibility: LessonVisibility.TEACHERS, });
+        visibilityQb.orWhere(
+          `(ls.visibility = :restrictedVisibility AND EXISTS (
+            SELECT 1 FROM teacher_lesson vtl WHERE vtl.lesson_id = ls.id AND vtl.teacher_id = :myTeacherId
+          ))`,
+          { restrictedVisibility: LessonVisibility.RESTRICTED, myTeacherId: teacherProfile.id, },
+        );
+      }
+
+      if (studentProfile?.studentGroupId) {
+        visibilityQb.orWhere(
+          `(ls.visibility = :restrictedVisibility AND EXISTS (
+            SELECT 1 FROM student_group_lesson vsgl WHERE vsgl.lesson_id = ls.id AND vsgl.student_group_id = :myStudentGroupId
+          ))`,
+          { restrictedVisibility: LessonVisibility.RESTRICTED, myStudentGroupId: studentProfile.studentGroupId, },
+        );
+      }
+    }));
   }
 }

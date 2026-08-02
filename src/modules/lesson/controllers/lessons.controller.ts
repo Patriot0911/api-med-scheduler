@@ -24,15 +24,17 @@ export class LessonsController {
   @Get()
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard)
-  async getLessons(@Query() query: GetLessonsRequestDto): Promise<IGenericListPayloadResponse<ILessonListItemModel>> {
-    return await this.lessonsService.getAll(query);
+  async getLessons(@Query() query: GetLessonsRequestDto, @Req() request): Promise<IGenericListPayloadResponse<ILessonListItemModel>> {
+    const { sub, permissions, } = <IAccessTokenPayload> request.user;
+    return await this.lessonsService.getAll(query, sub, permissions);
   }
 
   @Get(':lessonId')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard)
-  async getLessonById(@Param('lessonId') id: string): Promise<ILessonItemModel> {
-    return await this.lessonsService.getById(id);
+  async getLessonById(@Param('lessonId') id: string, @Req() request): Promise<ILessonItemModel> {
+    const { sub, permissions, } = <IAccessTokenPayload> request.user;
+    return await this.lessonsService.getByIdForUser(id, sub, permissions);
   }
 
   @Post()

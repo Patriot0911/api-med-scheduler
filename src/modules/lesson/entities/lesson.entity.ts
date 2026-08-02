@@ -3,6 +3,7 @@ import { LessonsGroupEntity } from './lessons-group.entity';
 import { SemesterEntity } from 'src/modules/semester/entities/semester.entity';
 import { StudentGroupLessonEntity } from './student-group-lesson.entity';
 import { TeacherLessonEntity } from './teacher-lesson.entity';
+import { LessonVisibility } from '../models/lesson-visibility.enum';
 
 @Entity('lessons')
 export class LessonEntity {
@@ -43,4 +44,11 @@ export class LessonEntity {
 
   @Column({ name: 'lesson_group_id' })
   lessonGroupId: string;
+
+  @Column({
+    type: 'enum',
+    enum: LessonVisibility,
+    default: LessonVisibility.RESTRICTED,
+  })
+  visibility: LessonVisibility;
 }

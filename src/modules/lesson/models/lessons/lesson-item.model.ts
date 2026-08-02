@@ -1,3 +1,5 @@
+import { LessonVisibility } from '../lesson-visibility.enum';
+
 export interface ILessonItemModel {
   id: string;
   name: string;
@@ -9,4 +11,5 @@ export interface ILessonItemModel {
   lessonGroupId: string;
   teacherIds: string[];
   studentGroupIds: string[];
+  visibility: LessonVisibility;
 };

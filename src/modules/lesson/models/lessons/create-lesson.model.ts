@@ -1,3 +1,5 @@
+import { LessonVisibility } from '../lesson-visibility.enum';
+
 export interface ICreateLessonModel {
   name: string;
   date: Date;
@@ -7,4 +9,5 @@ export interface ICreateLessonModel {
   note?: string;
   teacherIds: string[];
   studentGroupIds: string[];
+  visibility?: LessonVisibility;
 };

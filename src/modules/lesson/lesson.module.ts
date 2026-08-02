@@ -11,6 +11,7 @@ import { LessonsMapper } from './mappers/lessons.mapper';
 import { StudentGroupLessonEntity } from './entities/student-group-lesson.entity';
 import { TeacherLessonEntity } from './entities/teacher-lesson.entity';
 import { TeacherEntity } from '../users/entities/teacher.entity';
+import { StudentEntity } from '../users/entities/student.entity';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { TeacherEntity } from '../users/entities/teacher.entity';
       StudentGroupLessonEntity,
       TeacherLessonEntity,
       TeacherEntity,
+      StudentEntity,
     ]),
   ],
   controllers: [
