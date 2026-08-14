@@ -8,6 +8,7 @@ export class GetLessonsRequestDto implements IGetLessonsFiltersModel {
   @Type(() => Number)
   @IsNumber()
   @Min(1)
+  @Type(() => Number)
   page: number;
 
   @ApiProperty({ required: false, default: 10 })
@@ -15,6 +16,7 @@ export class GetLessonsRequestDto implements IGetLessonsFiltersModel {
   @IsNumber()
   @Min(0)
   @Max(100)
+  @Type(() => Number)
   pageSize: number;
 
   @IsOptional()
