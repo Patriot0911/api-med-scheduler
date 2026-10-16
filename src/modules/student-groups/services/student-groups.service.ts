@@ -35,6 +35,7 @@ export class StudentGroupsService {
     const groupsQb = this.studentGroupsRepository
       .createQueryBuilder('groups')
       .leftJoinAndSelect('groups.groupTags', 'tags')
+      .orderBy('groups.name', 'ASC')
       .skip((page - 1) * pageSize)
       .take(pageSize);
 
@@ -42,15 +43,15 @@ export class StudentGroupsService {
       groupsQb.andWhere('groups.name ILIKE :search', { search: `%${search}%`, });
     }
 
+    // filter through a subquery so the joined tags of a matching group stay complete
     if (tags && tags.length > 0) {
-      groupsQb.andWhere('tags.id IN (:...tags)', { tags, });
+      groupsQb.andWhere(
+        'EXISTS (SELECT 1 FROM student_group_tags fsgt WHERE fsgt.student_group_id = groups.id AND fsgt.group_tag_id IN (:...tags))',
+        { tags, },
+      );
     }
 
-    groupsQb.groupBy('groups.id');
-
-    const [groupsData, total] = await groupsQb
-      .distinct(true)
-      .getManyAndCount();
+    const [groupsData, total] = await groupsQb.getManyAndCount();
 
     return {
       items: groupsData.map(
@@ -69,9 +70,7 @@ export class StudentGroupsService {
   }
 
   async createGroup(data: ICreateStudentGroupModel) {
-    const tags = await this.groupTagsRepository.find({
-      where: { id: In(data.tagIds), }
-    });
+    const tags = await this.findTags(data.tagIds);
     const newGroup = this.studentGroupsRepository.create({
       name: data.name,
       studyYear: data.studyYear,
@@ -82,25 +81,32 @@ export class StudentGroupsService {
   }
 
   async editStudentGroup(groupData: IEditStudentGroupModel, studentGroupId: string) {
-    const tags = await this.groupTagsRepository.find({
-      where: { id: In(groupData.tagIds), }
+    // many-to-many can't go through repository.update(): load, assign and save
+    const group = await this.studentGroupsRepository.findOneOrFail({
+      where: { id: studentGroupId, },
     });
-    const updatedGroup = await this.studentGroupsRepository.update(
-      { id: studentGroupId, },
-      {
-        name: groupData.name,
-        studyYear: groupData.studyYear,
-        groupTags: tags,
-      },
-    );
-    return !!updatedGroup.affected;
+    group.name = groupData.name;
+    group.studyYear = groupData.studyYear;
+    group.groupTags = await this.findTags(groupData.tagIds);
+    await this.studentGroupsRepository.save(group);
+    return true;
   }
 
   async deleteGroup(studentGroupId: string) {
     const studentGroupData = await this.studentGroupsRepository.findOneOrFail({
-      where: { id: studentGroupId, }
+      where: { id: studentGroupId, },
+      relations: { groupTags: true, },
     });
     const removedStudentGroup = await this.studentGroupsRepository.remove(studentGroupData);
-    return this.studentGroupsMapper.entityToItem(removedStudentGroup);
+    return this.studentGroupsMapper.entityToItem({ ...removedStudentGroup, id: studentGroupId, });
+  }
+
+  private async findTags(tagIds: string[]): Promise<GroupTagEntity[]> {
+    if (tagIds.length === 0) {
+      return [];
+    }
+    return await this.groupTagsRepository.find({
+      where: { id: In(tagIds), },
+    });
   }
 }
