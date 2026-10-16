@@ -39,7 +39,7 @@ export class StudentGroupsService {
       .take(pageSize);
 
     if (search) {
-      groupsQb.andWhere('groups.name LIKE :search', { search, });
+      groupsQb.andWhere('groups.name ILIKE :search', { search: `%${search}%`, });
     }
 
     if (tags && tags.length > 0) {

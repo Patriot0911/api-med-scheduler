@@ -42,7 +42,7 @@ export class SemestersService {
       semQb.andWhere('sem.dateTo <= :dateTo', { dateTo, });
     }
     if (search) {
-      semQb.andWhere('sem.name LIKE :search', { search, });
+      semQb.andWhere('sem.name ILIKE :search', { search: `%${search}%`, });
     }
 
     const [semestersData, total] = await semQb

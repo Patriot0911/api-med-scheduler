@@ -40,7 +40,7 @@ export class GroupTagsService {
       .take(pageSize);
 
     if (search) {
-      tagsQb.andWhere('tags.name LIKE :search', { search, });
+      tagsQb.andWhere('tags.name ILIKE :search', { search: `%${search}%`, });
     }
 
     const [tagsData, total] = await tagsQb.getManyAndCount();

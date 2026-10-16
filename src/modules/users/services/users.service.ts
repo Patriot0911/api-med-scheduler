@@ -65,7 +65,7 @@ export class UsersService {
       .take(pageSize);
 
     if (search) {
-      usersQb.andWhere('(users.fullName LIKE :search OR users.email LIKE :search)', { search, });
+      usersQb.andWhere('(users.fullName ILIKE :search OR users.email ILIKE :search)', { search: `%${search}%`, });
     }
 
     const [usersData, total] = await usersQb

@@ -38,7 +38,7 @@ export class RolesService {
       .take(pageSize);
 
     if (search) {
-      rolesQb.andWhere('roles.name LIKE :search', { search, });
+      rolesQb.andWhere('roles.name ILIKE :search', { search: `%${search}%`, });
     }
 
     const [rolesData, total] = await rolesQb
