@@ -15,6 +15,8 @@ import { StudentGroupsService } from 'src/modules/student-groups/services/studen
 import { IGroupDictionaryItem } from 'src/modules/student-groups/models/group-dictionary-item.model';
 import { LessonsGroupsService } from 'src/modules/lesson/services/lessons-groups.service';
 import { ILessonGroupDictionaryItem } from 'src/modules/lesson/models/lesson-groups/lesson-group-dictionary-item.model';
+import { DepartmentsService } from 'src/modules/departments/services/departments.service';
+import { IDepartmentDictionaryItem } from 'src/modules/departments/models/department-dictionary-item.model';
 
 @ApiTags('Dictionaries')
 @Controller('api/dictionaries')
@@ -26,6 +28,7 @@ export class DictionariesController {
     private readonly semestersService: SemestersService,
     private readonly studentGroupsService: StudentGroupsService,
     private readonly lessonsGroupsService: LessonsGroupsService,
+    private readonly departmentsService: DepartmentsService,
   ) {}
 
   @Get('permissions')
@@ -70,5 +73,19 @@ export class DictionariesController {
   @UseGuards(JwtAccessGuard)
   async getLessonGroupsDictionary(): Promise<ILessonGroupDictionaryItem[]> {
     return await this.lessonsGroupsService.getLessonGroupsDictionary();
+  }
+
+  @Get('departments')
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard, PermissionsGuard)
+  @Permissions(
+    Permission.READ_DEPARTMENTS,
+    Permission.MANAGE_DEPARTMENTS,
+    Permission.READ_USERS,
+    Permission.MANAGE_USERS,
+    Permission.ADMIN,
+  )
+  async getDepartmentsDictionary(): Promise<IDepartmentDictionaryItem[]> {
+    return await this.departmentsService.getDepartmentsDictionary();
   }
 }

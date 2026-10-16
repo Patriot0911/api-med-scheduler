@@ -12,6 +12,8 @@ import { GetUsersRequestDto } from '../dto/get-users-request.dto';
 import { CreateUserRequestDto } from '../dto/create-user-request.dto';
 import { CreateStudentProfileRequestDto } from '../dto/create-student-profile-request.dto';
 import { EditStudentProfileRequestDto } from '../dto/edit-student-profile-request.dto';
+import { CreateTeacherProfileRequestDto } from '../dto/create-teacher-profile-request.dto';
+import { EditTeacherProfileRequestDto } from '../dto/edit-teacher-profile-request.dto';
 import { IUserListItemModel } from '../models/user-list-item.model';
 import { IUserItemModel } from '../models/user-item.model';
 import { ITeacherProfileModel } from '../models/teacher-profile.model';
@@ -63,8 +65,22 @@ export class UsersController {
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
   @Permissions(Permission.MANAGE_USERS, Permission.ADMIN)
-  async createTeacherProfile(@Param('userId') userId: string): Promise<ITeacherProfileModel> {
-    return await this.usersService.createTeacherProfile(userId);
+  async createTeacherProfile(
+    @Param('userId') userId: string,
+    @Body() data: CreateTeacherProfileRequestDto,
+  ): Promise<ITeacherProfileModel> {
+    return await this.usersService.createTeacherProfile(userId, data);
+  }
+
+  @Put(':userId/teacher')
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard, PermissionsGuard)
+  @Permissions(Permission.MANAGE_USERS, Permission.ADMIN)
+  async editTeacherProfile(
+    @Param('userId') userId: string,
+    @Body() data: EditTeacherProfileRequestDto,
+  ): Promise<ITeacherProfileModel> {
+    return await this.usersService.editTeacherProfile(userId, data);
   }
 
   @Delete(':userId/teacher')

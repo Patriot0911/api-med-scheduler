@@ -6,6 +6,7 @@ import { TeacherEntity } from '../entities/teacher.entity';
 import { StudentEntity } from '../entities/student.entity';
 import { RoleEntity } from 'src/modules/roles/entities/role.entity';
 import { StudentGroupEntity } from 'src/modules/student-groups/entities/student-group.entity';
+import { DepartmentEntity } from 'src/modules/departments/entities/department.entity';
 import { RolesService } from 'src/modules/roles/services/roles.service';
 import { PasswordService } from 'src/modules/auth/services/password.service';
 import { UsersMapper } from '../mappers/user.mapper';
@@ -16,6 +17,8 @@ import { IGetUsersFiltersModel } from '../models/get-users-filters.model';
 import { ICreateUserModel } from '../models/create-user.model';
 import { ICreateStudentProfileModel } from '../models/create-student-profile.model';
 import { IEditStudentProfileModel } from '../models/edit-student-profile.model';
+import { ICreateTeacherProfileModel } from '../models/create-teacher-profile.model';
+import { IEditTeacherProfileModel } from '../models/edit-teacher-profile.model';
 import { ITeacherProfileModel } from '../models/teacher-profile.model';
 import { IStudentProfileModel } from '../models/student-profile.model';
 import { randomBytes } from 'crypto';
@@ -33,6 +36,8 @@ export class UsersService {
     private studentsRepository: Repository<StudentEntity>,
     @InjectRepository(StudentGroupEntity)
     private studentGroupsRepository: Repository<StudentGroupEntity>,
+    @InjectRepository(DepartmentEntity)
+    private departmentsRepository: Repository<DepartmentEntity>,
     private readonly usersMapper: UsersMapper,
     private readonly rolesService: RolesService,
     private readonly passwordService: PasswordService,
@@ -99,6 +104,12 @@ export class UsersService {
       });
     }
 
+    if (data.teacher?.departmentId) {
+      await this.departmentsRepository.findOneOrFail({
+        where: { id: data.teacher.departmentId, },
+      });
+    }
+
     const generatedPassword = randomBytes(24).toString('base64url');
     const hashedPassword = await this.passwordService.hash(generatedPassword);
 
@@ -113,6 +124,7 @@ export class UsersService {
     if (data.teacher) {
       const teacherProfile = this.teachersRepository.create({
         userId: createdUser.id,
+        departmentId: data.teacher.departmentId ?? null,
       });
       await this.teachersRepository.save(teacherProfile);
     }
@@ -129,7 +141,7 @@ export class UsersService {
     return this.getById(createdUser.id);
   }
 
-  async createTeacherProfile(userId: string): Promise<ITeacherProfileModel> {
+  async createTeacherProfile(userId: string, data: ICreateTeacherProfileModel = {}): Promise<ITeacherProfileModel> {
     await this.usersRepository.findOneOrFail({
       where: { id: userId, },
     });
@@ -141,9 +153,36 @@ export class UsersService {
       throw new BadRequestException('Teacher profile already exists for this user');
     }
 
-    const teacherProfile = this.teachersRepository.create({ userId, });
+    if (data.departmentId) {
+      await this.departmentsRepository.findOneOrFail({
+        where: { id: data.departmentId, },
+      });
+    }
+
+    const teacherProfile = this.teachersRepository.create({
+      userId,
+      departmentId: data.departmentId ?? null,
+    });
     const createdProfile = await this.teachersRepository.save(teacherProfile);
     return this.usersMapper.teacherProfileToItem(createdProfile);
+  }
+
+  async editTeacherProfile(userId: string, data: IEditTeacherProfileModel): Promise<ITeacherProfileModel> {
+    const teacherProfile = await this.teachersRepository.findOneOrFail({
+      where: { userId, },
+    });
+
+    if (data.departmentId !== undefined) {
+      if (data.departmentId) {
+        await this.departmentsRepository.findOneOrFail({
+          where: { id: data.departmentId, },
+        });
+      }
+      teacherProfile.departmentId = data.departmentId ?? null;
+    }
+
+    const updatedProfile = await this.teachersRepository.save(teacherProfile);
+    return this.usersMapper.teacherProfileToItem(updatedProfile);
   }
 
   async deleteTeacherProfile(userId: string): Promise<ITeacherProfileModel> {

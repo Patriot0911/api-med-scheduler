@@ -9,6 +9,7 @@ import { RolesModule } from './modules/roles/roles.module';
 import { DictionariesModule } from './modules/dictionaries/dictionaries.module';
 import { SemesterModule } from './modules/semester/semester.module';
 import { LessonModule } from './modules/lesson/lesson.module';
+import { DepartmentsModule } from './modules/departments/departments.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { LessonModule } from './modules/lesson/lesson.module';
     LessonModule,
     SemesterModule,
     StudentGroupsModule,
+    DepartmentsModule,
     DictionariesModule,
     ConfigModule.forRoot({
       isGlobal: true,

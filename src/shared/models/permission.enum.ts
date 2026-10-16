@@ -15,4 +15,7 @@ export enum Permission {
 
   READ_COMMENTS = 'read_comments',
   MANAGE_COMMENTS = 'manage_comments',
+
+  READ_DEPARTMENTS = 'read_departments',
+  MANAGE_DEPARTMENTS = 'manage_departments',
 };

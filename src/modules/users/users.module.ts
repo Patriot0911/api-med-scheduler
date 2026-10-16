@@ -10,6 +10,7 @@ import { UsersMapper } from './mappers/user.mapper';
 import { UsersController } from './controllers/users.controller';
 import { RoleEntity } from '../roles/entities/role.entity';
 import { StudentGroupEntity } from '../student-groups/entities/student-group.entity';
+import { DepartmentEntity } from '../departments/entities/department.entity';
 import { RolesModule } from '../roles/roles.module';
 import { PasswordService } from '../auth/services/password.service';
 
@@ -23,6 +24,7 @@ import { PasswordService } from '../auth/services/password.service';
       TeacherEntity,
       StudentEntity,
       StudentGroupEntity,
+      DepartmentEntity,
     ]),
   ],
   controllers: [

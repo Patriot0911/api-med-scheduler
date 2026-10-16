@@ -25,8 +25,8 @@ export class UsersMapper {
   }
 
   teacherProfileToItem(teacher: TeacherEntity): ITeacherProfileModel {
-    const { id, } = teacher;
-    return { id, };
+    const { id, departmentId, } = teacher;
+    return { id, departmentId: departmentId ?? null, };
   }
 
   studentProfileToItem(student: StudentEntity): IStudentProfileModel {
