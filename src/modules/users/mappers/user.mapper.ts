@@ -6,6 +6,7 @@ import { IUserItemModel } from '../models/user-item.model';
 import { IUserListItemModel } from '../models/user-list-item.model';
 import { ITeacherProfileModel } from '../models/teacher-profile.model';
 import { IStudentProfileModel } from '../models/student-profile.model';
+import { ITeacherDictionaryItem } from '../models/teacher-dictionary-item.model';
 
 @Injectable()
 export class UsersMapper {
@@ -27,6 +28,11 @@ export class UsersMapper {
   teacherProfileToItem(teacher: TeacherEntity): ITeacherProfileModel {
     const { id, departmentId, } = teacher;
     return { id, departmentId: departmentId ?? null, };
+  }
+
+  teacherToDictionaryItem(teacher: TeacherEntity): ITeacherDictionaryItem {
+    const { id, user, departmentId, } = teacher;
+    return { id, name: user.fullName, departmentId: departmentId ?? null, };
   }
 
   studentProfileToItem(student: StudentEntity): IStudentProfileModel {

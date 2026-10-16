@@ -1,6 +1,6 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, In, Repository, SelectQueryBuilder } from 'typeorm';
+import { In, Repository, SelectQueryBuilder } from 'typeorm';
 import { LessonEntity } from '../entities/lesson.entity';
 import { IGetLessonsFiltersModel } from '../models/lessons/get-lessons-filter.model';
 import { IGenericListPayloadResponse } from 'src/shared/models/generic-list-payload.response';
@@ -9,17 +9,16 @@ import { ILessonListItemModel } from '../models/lessons/lesson-list-item.model';
 import { ILessonItemModel } from '../models/lessons/lesson-item.model';
 import { ICreateLessonModel } from '../models/lessons/create-lesson.model';
 import { IEditLessonModel } from '../models/lessons/edit-lesson.model';
-import { ITeacherUpdateLessonModel } from '../models/lessons/teacher-update-lesson.model';
 import { LessonVisibility } from '../models/lesson-visibility.enum';
 import { TeacherLessonEntity } from '../entities/teacher-lesson.entity';
 import { StudentGroupLessonEntity } from '../entities/student-group-lesson.entity';
-import { TeacherEntity } from 'src/modules/users/entities/teacher.entity';
-import { StudentEntity } from 'src/modules/users/entities/student.entity';
-import { Permission } from 'src/shared/models/permission.enum';
-import { LessonsGroupEntity } from '../entities/lessons-group.entity';
-import { LessonAccessService } from './lesson-access.service';
-import { ILessonManageScopeModel } from '../models/lesson-manage-scope.model';
+import { ILessonsFiltersModel } from '../models/lessons/lessons-filters.model';
+import { IPaginationFilters } from 'src/shared/models/pagination-filters.model';
 
+/**
+ * General lessons logic without any scope restrictions (admin / manage_lessons),
+ * plus the shared query helpers used by the scoped services.
+ */
 @Injectable()
 export class LessonsService {
   constructor(
@@ -29,83 +28,26 @@ export class LessonsService {
     private teacherLessonRepository: Repository<TeacherLessonEntity>,
     @InjectRepository(StudentGroupLessonEntity)
     private studentGroupLessonRepository: Repository<StudentGroupLessonEntity>,
-    @InjectRepository(TeacherEntity)
-    private teachersRepository: Repository<TeacherEntity>,
-    @InjectRepository(StudentEntity)
-    private studentsRepository: Repository<StudentEntity>,
-    @InjectRepository(LessonsGroupEntity)
-    private lessonGroupsRepository: Repository<LessonsGroupEntity>,
     private readonly lessonsMapper: LessonsMapper,
-    private readonly lessonAccessService: LessonAccessService,
   ) {}
 
-  async getAll(
-    params: IGetLessonsFiltersModel,
-    userId: string,
-    permissions: Permission[],
-  ): Promise<IGenericListPayloadResponse<ILessonListItemModel>> {
-    const { page, pageSize, dateFrom, dateTo, group, teacher, } = params;
-    const lessonsQb = this.lessonsRepository
-      .createQueryBuilder('ls')
-      .leftJoin('ls.teacherLessons', 'teacherLessons')
-      .leftJoin('teacherLessons.teacher', 'teacher')
-      .leftJoin('teacher.user', 'teacherUser')
-      .leftJoin('ls.studentGroupLessons', 'studentGroupLessons')
-      .leftJoin('studentGroupLessons.studentGroup', 'studentGroup')
-      .skip((page - 1) * pageSize)
-      .take(pageSize);
+  async getAll(params: IGetLessonsFiltersModel): Promise<IGenericListPayloadResponse<ILessonListItemModel>> {
+    const lessonsQb = this.buildLessonsQuery(params);
+    return await this.getPage(lessonsQb, params);
+  }
 
-    if (dateFrom) {
-      lessonsQb.andWhere('(ls.date >= :dateFrom)', { dateFrom, });
-    }
-    if (dateTo) {
-      lessonsQb.andWhere('(ls.date <= :dateTo)', { dateTo, });
-    }
-    if (teacher) {
-      lessonsQb.andWhere('teacherUser.fullName LIKE :teacher', { teacher: `%${teacher}%`, });
-    }
-    if (group) {
-      lessonsQb.andWhere('studentGroup.name LIKE :group', { group: `%${group}%`, });
-    }
-
-    await this.applyVisibilityFilter(lessonsQb, userId, permissions);
-
-    const [lsData, total] = await lessonsQb
-      .distinct(true)
-      .getManyAndCount();
-
-    const lessonsWithRelations = lsData.length
-      ? await this.lessonsRepository.find({
-        where: { id: In(lsData.map((lesson) => lesson.id)), },
-        relations: { teacherLessons: true, studentGroupLessons: true, },
-      })
-      : [];
-    const lessonsById = new Map(lessonsWithRelations.map((lesson) => [lesson.id, lesson]));
-
-    return {
-      items: lsData.map(
-        (s) => this.lessonsMapper.entityToListItem(lessonsById.get(s.id) ?? s)
-      ),
-      meta: { count: total, },
-    };
-  };
+  /** Public lessons for the public calendar: no auth, no pagination. */
+  async getPublicLessons(filters: ILessonsFiltersModel): Promise<ILessonListItemModel[]> {
+    const lessonsQb = this.buildLessonsQuery(filters)
+      .andWhere('ls.visibility = :publicVisibility', { publicVisibility: LessonVisibility.PUBLIC, });
+    return await this.getList(lessonsQb);
+  }
 
   async getById(id: string): Promise<ILessonItemModel> {
     const lesson = await this.lessonsRepository.findOneOrFail({
       where: { id, },
       relations: { teacherLessons: true, studentGroupLessons: true, },
     });
-    return this.lessonsMapper.entityToItem(lesson);
-  }
-
-  async getByIdForUser(id: string, userId: string, permissions: Permission[]): Promise<ILessonItemModel> {
-    const lesson = await this.lessonsRepository.findOneOrFail({
-      where: { id, },
-      relations: { teacherLessons: true, studentGroupLessons: true, },
-    });
-
-    await this.assertLessonVisible(lesson, userId, permissions);
-
     return this.lessonsMapper.entityToItem(lesson);
   }
 
@@ -138,44 +80,6 @@ export class LessonsService {
     }
 
     return this.getById(createdLesson.id);
-  }
-
-  async createLessonForUser(data: ICreateLessonModel, scope: ILessonManageScopeModel): Promise<ILessonItemModel> {
-    await this.lessonAccessService.assertCanAssignTeachers(scope, data.teacherIds);
-    if (data.lessonGroupId) {
-      const lessonGroup = await this.lessonGroupsRepository.findOneOrFail({
-        where: { id: data.lessonGroupId, },
-      });
-      this.lessonAccessService.assertCanUseGroup(scope, lessonGroup);
-    }
-    return this.createLesson(data);
-  }
-
-  async editLessonForUser(lessonId: string, data: IEditLessonModel, scope: ILessonManageScopeModel): Promise<ILessonItemModel> {
-    const lesson = await this.lessonsRepository.findOneOrFail({
-      where: { id: lessonId, },
-      relations: { teacherLessons: true, },
-    });
-    await this.lessonAccessService.assertCanManageLesson(scope, lesson);
-    if (data.teacherIds !== undefined) {
-      await this.lessonAccessService.assertCanAssignTeachers(scope, data.teacherIds);
-    }
-    if (data.lessonGroupId && data.lessonGroupId !== lesson.lessonGroupId) {
-      const lessonGroup = await this.lessonGroupsRepository.findOneOrFail({
-        where: { id: data.lessonGroupId, },
-      });
-      this.lessonAccessService.assertCanUseGroup(scope, lessonGroup);
-    }
-    return this.editLesson(lessonId, data);
-  }
-
-  async deleteLessonForUser(lessonId: string, scope: ILessonManageScopeModel): Promise<void> {
-    const lesson = await this.lessonsRepository.findOneOrFail({
-      where: { id: lessonId, },
-      relations: { teacherLessons: true, },
-    });
-    await this.lessonAccessService.assertCanManageLesson(scope, lesson);
-    await this.lessonsRepository.remove(lesson);
   }
 
   async editLesson(lessonId: string, { teacherIds, studentGroupIds, ...data }: IEditLessonModel): Promise<ILessonItemModel> {
@@ -216,41 +120,6 @@ export class LessonsService {
     return this.getById(lessonId);
   }
 
-  async updateLessonAsTeacher(
-    lessonId: string,
-    userId: string,
-    permissions: Permission[],
-    data: ITeacherUpdateLessonModel,
-  ): Promise<ILessonItemModel> {
-    const lesson = await this.lessonsRepository.findOneOrFail({
-      where: { id: lessonId, },
-      relations: { teacherLessons: true, },
-    });
-
-    const teacherProfile = await this.teachersRepository.findOne({
-      where: { userId, },
-    });
-
-    const isAssignedTeacher = !!teacherProfile
-      && lesson.teacherLessons.some((teacherLesson) => teacherLesson.teacherId === teacherProfile.id);
-    const hasManageAccess = permissions.includes(Permission.ADMIN) || permissions.includes(Permission.MANAGE_LESSONS);
-
-    if (!isAssignedTeacher && !hasManageAccess) {
-      throw new ForbiddenException('Only a teacher assigned to this lesson can update it');
-    }
-
-    if (data.note !== undefined) {
-      lesson.note = data.note;
-    }
-    if (data.delayedDate !== undefined) {
-      lesson.delayedDate = data.delayedDate;
-    }
-
-    await this.lessonsRepository.save(lesson);
-
-    return this.getById(lessonId);
-  }
-
   async deleteLesson(lessonId: string): Promise<void> {
     const lessonData = await this.lessonsRepository.findOneOrFail({
       where: { id: lessonId, }
@@ -258,137 +127,66 @@ export class LessonsService {
     await this.lessonsRepository.remove(lessonData);
   }
 
-  private hasManageLessonsAccess(permissions: Permission[]): boolean {
-    return permissions.includes(Permission.ADMIN) || permissions.includes(Permission.MANAGE_LESSONS);
+  buildLessonsQuery({ dateFrom, dateTo, teacherId, studentGroupId, }: ILessonsFiltersModel): SelectQueryBuilder<LessonEntity> {
+    const lessonsQb = this.lessonsRepository.createQueryBuilder('ls');
+
+    if (dateFrom) {
+      lessonsQb.andWhere('(ls.date >= :dateFrom)', { dateFrom, });
+    }
+    if (dateTo) {
+      lessonsQb.andWhere('(ls.date <= :dateTo)', { dateTo, });
+    }
+    if (teacherId) {
+      lessonsQb.andWhere(
+        'EXISTS (SELECT 1 FROM teacher_lesson ftl WHERE ftl.lesson_id = ls.id AND ftl.teacher_id = :filterTeacherId)',
+        { filterTeacherId: teacherId, },
+      );
+    }
+    if (studentGroupId) {
+      lessonsQb.andWhere(
+        'EXISTS (SELECT 1 FROM student_group_lesson fsgl WHERE fsgl.lesson_id = ls.id AND fsgl.student_group_id = :filterStudentGroupId)',
+        { filterStudentGroupId: studentGroupId, },
+      );
+    }
+
+    return lessonsQb;
   }
 
-  private async getVisibleDepartmentId(
-    lesson: Pick<LessonEntity, 'visibility'>,
-    permissions: Permission[],
-    teacherProfile: TeacherEntity | null,
-  ): Promise<string | null> {
-    const headDepartmentId = await this.lessonAccessService.getHeadedDepartmentId(teacherProfile, permissions);
-    if (headDepartmentId) {
-      return headDepartmentId;
-    }
-    if (lesson.visibility === LessonVisibility.DEPARTMENT) {
-      return teacherProfile?.departmentId ?? null;
-    }
-    return null;
+  async getPage(
+    lessonsQb: SelectQueryBuilder<LessonEntity>,
+    { page, pageSize, }: IPaginationFilters,
+  ): Promise<IGenericListPayloadResponse<ILessonListItemModel>> {
+    const [lsData, total] = await lessonsQb
+      .skip((page - 1) * pageSize)
+      .take(pageSize)
+      .getManyAndCount();
+
+    return {
+      items: await this.toListItems(lsData),
+      meta: { count: total, },
+    };
   }
 
-  private isLessonVisibleToUser(
-    lesson: Pick<LessonEntity, 'visibility' | 'teacherLessons' | 'studentGroupLessons'>,
-    teacherProfile: TeacherEntity | null,
-    studentProfile: StudentEntity | null,
-  ): boolean {
-    if (lesson.visibility === LessonVisibility.PUBLIC) {
-      return true;
-    }
-    if (lesson.visibility === LessonVisibility.TEACHERS) {
-      return !!teacherProfile;
-    }
-
-    const isAssignedTeacher = !!teacherProfile
-      && lesson.teacherLessons.some((teacherLesson) => teacherLesson.teacherId === teacherProfile.id);
-    const isInAssignedGroup = !!studentProfile?.studentGroupId
-      && lesson.studentGroupLessons.some((studentGroupLesson) => studentGroupLesson.studentGroupId === studentProfile.studentGroupId);
-
-    return isAssignedTeacher || isInAssignedGroup;
+  /** Unpaginated list ordered by date, for calendars. */
+  async getList(lessonsQb: SelectQueryBuilder<LessonEntity>): Promise<ILessonListItemModel[]> {
+    const lessonsData = await lessonsQb
+      .orderBy('ls.date', 'ASC')
+      .getMany();
+    return await this.toListItems(lessonsData);
   }
 
-  private async assertLessonVisible(lesson: LessonEntity, userId: string, permissions: Permission[]): Promise<void> {
-    if (this.hasManageLessonsAccess(permissions)) {
-      return;
-    }
+  /** The list query only filters through relations; load them fully for the mapper. */
+  private async toListItems(lessons: LessonEntity[]): Promise<ILessonListItemModel[]> {
+    const lessonsWithRelations = lessons.length
+      ? await this.lessonsRepository.find({
+        where: { id: In(lessons.map((lesson) => lesson.id)), },
+        relations: { teacherLessons: true, studentGroupLessons: true, },
+      })
+      : [];
+    const lessonsById = new Map(lessonsWithRelations.map((lesson) => [lesson.id, lesson]));
 
-    const [teacherProfile, studentProfile] = await Promise.all([
-      this.teachersRepository.findOne({ where: { userId, }, }),
-      this.studentsRepository.findOne({ where: { userId, }, }),
-    ]);
-
-    if (this.isLessonVisibleToUser(lesson, teacherProfile, studentProfile)) {
-      return;
-    }
-
-    const departmentId = await this.getVisibleDepartmentId(lesson, permissions, teacherProfile);
-    if (departmentId) {
-      const lessonTeacherIds = lesson.teacherLessons.map((teacherLesson) => teacherLesson.teacherId);
-      if (lessonTeacherIds.length > 0) {
-        const departmentTeachersCount = await this.teachersRepository.count({
-          where: { id: In(lessonTeacherIds), departmentId, },
-        });
-        if (departmentTeachersCount > 0) {
-          return;
-        }
-      }
-    }
-
-    throw new ForbiddenException('You do not have access to this lesson');
-  }
-
-  private async applyVisibilityFilter(
-    qb: SelectQueryBuilder<LessonEntity>,
-    userId: string,
-    permissions: Permission[],
-  ): Promise<void> {
-    if (this.hasManageLessonsAccess(permissions)) {
-      return;
-    }
-
-    const [teacherProfile, studentProfile] = await Promise.all([
-      this.teachersRepository.findOne({ where: { userId, }, }),
-      this.studentsRepository.findOne({ where: { userId, }, }),
-    ]);
-
-    const headDepartmentId = await this.lessonAccessService.getHeadedDepartmentId(teacherProfile, permissions);
-
-    qb.andWhere(new Brackets((visibilityQb) => {
-      visibilityQb.where('ls.visibility = :publicVisibility', { publicVisibility: LessonVisibility.PUBLIC, });
-
-      // department-visible lessons are a superset of restricted ones: assigned teachers/groups still see them
-      const assignedVisibilities = [LessonVisibility.RESTRICTED, LessonVisibility.DEPARTMENT];
-
-      if (teacherProfile) {
-        visibilityQb.orWhere('ls.visibility = :teachersVisibility', { teachersVisibility: LessonVisibility.TEACHERS, });
-        visibilityQb.orWhere(
-          `(ls.visibility IN (:...assignedVisibilities) AND EXISTS (
-            SELECT 1 FROM teacher_lesson vtl WHERE vtl.lesson_id = ls.id AND vtl.teacher_id = :myTeacherId
-          ))`,
-          { assignedVisibilities, myTeacherId: teacherProfile.id, },
-        );
-      }
-
-      if (teacherProfile?.departmentId) {
-        visibilityQb.orWhere(
-          `(ls.visibility = :departmentVisibility AND EXISTS (
-            SELECT 1 FROM teacher_lesson vdtl
-            INNER JOIN teachers vdt ON vdt.id = vdtl.teacher_id
-            WHERE vdtl.lesson_id = ls.id AND vdt.department_id = :myTeacherDepartmentId
-          ))`,
-          { departmentVisibility: LessonVisibility.DEPARTMENT, myTeacherDepartmentId: teacherProfile.departmentId, },
-        );
-      }
-
-      if (headDepartmentId) {
-        visibilityQb.orWhere(
-          `EXISTS (
-            SELECT 1 FROM teacher_lesson dtl
-            INNER JOIN teachers dt ON dt.id = dtl.teacher_id
-            WHERE dtl.lesson_id = ls.id AND dt.department_id = :myDepartmentId
-          )`,
-          { myDepartmentId: headDepartmentId, },
-        );
-      }
-
-      if (studentProfile?.studentGroupId) {
-        visibilityQb.orWhere(
-          `(ls.visibility IN (:...assignedVisibilities) AND EXISTS (
-            SELECT 1 FROM student_group_lesson vsgl WHERE vsgl.lesson_id = ls.id AND vsgl.student_group_id = :myStudentGroupId
-          ))`,
-          { assignedVisibilities, myStudentGroupId: studentProfile.studentGroupId, },
-        );
-      }
-    }));
+    return lessons.map(
+      (lesson) => this.lessonsMapper.entityToListItem(lessonsById.get(lesson.id) ?? lesson)
+    );
   }
 }

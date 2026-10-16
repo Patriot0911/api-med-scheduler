@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } fro
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { JwtAccessGuard } from "src/modules/auth/guards/access-refresh.guard";
 import { LessonsGroupsService } from "../services/lessons-groups.service";
+import { Permission } from 'src/shared/models/permission.enum';
 import { PermissionsGuard } from 'src/modules/auth/guards/permission.guard';
 import { IGenericListPayloadResponse } from 'src/shared/models/generic-list-payload.response';
 import { GetLessonGroupsRequestDto } from '../dto/lesson-groups/get-lesson-groups-request.dto';
@@ -14,10 +15,8 @@ import { GenerateLessonSeriesRequestDto } from '../dto/lesson-groups/generate-le
 import { CreateLessonGroupWithLessonsRequestDto } from '../dto/lesson-groups/create-lesson-group-with-lessons-request.dto';
 import { ILessonItemModel } from '../models/lessons/lesson-item.model';
 import { ILessonGroupWithLessonsModel } from '../models/lesson-groups/lesson-group-with-lessons.model';
-import { LESSON_MANAGE_PERMISSIONS } from '../services/lesson-access.service';
-import type { ILessonManageScopeModel } from '../models/lesson-manage-scope.model';
-import { LessonScope } from '../decorators/lesson-scope.decorator';
 
+/** General lesson groups management: admin / manage_lessons. */
 @ApiTags('Lessons Groups')
 @Controller('api/lessons-groups')
 export class LessonsGroupsController {
@@ -28,72 +27,70 @@ export class LessonsGroupsController {
   @Get()
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(...LESSON_MANAGE_PERMISSIONS)
-  async getAllLessonGroups(@Query() params: GetLessonGroupsRequestDto, @LessonScope() scope: ILessonManageScopeModel): Promise<IGenericListPayloadResponse<ILessonGroupListItemModel>> {
-    return await this.lessonsGroups.getAll(params, scope);
+  @Permissions(Permission.ADMIN, Permission.MANAGE_LESSONS)
+  async getAllLessonGroups(@Query() params: GetLessonGroupsRequestDto): Promise<IGenericListPayloadResponse<ILessonGroupListItemModel>> {
+    return await this.lessonsGroups.getAll(params);
   }
 
   @Get(':lessonGroupId')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(...LESSON_MANAGE_PERMISSIONS)
-  async getLessonGroup(@Param('lessonGroupId') lessonGroupId: string, @LessonScope() scope: ILessonManageScopeModel): Promise<ILessonGroupItemModel> {
-    return await this.lessonsGroups.getById(lessonGroupId, scope);
+  @Permissions(Permission.ADMIN, Permission.MANAGE_LESSONS)
+  async getLessonGroup(@Param('lessonGroupId') lessonGroupId: string): Promise<ILessonGroupItemModel> {
+    return await this.lessonsGroups.getById(lessonGroupId);
   }
 
   @Post()
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(...LESSON_MANAGE_PERMISSIONS)
-  async createLessonGroup(@Body() dto: CreateLessonGroupRequestDto, @LessonScope() scope: ILessonManageScopeModel): Promise<ILessonGroupItemModel> {
-    return await this.lessonsGroups.createLessonGroup(dto, scope);
+  @Permissions(Permission.ADMIN, Permission.MANAGE_LESSONS)
+  async createLessonGroup(@Body() dto: CreateLessonGroupRequestDto): Promise<ILessonGroupItemModel> {
+    return await this.lessonsGroups.createLessonGroup(dto);
   }
 
   @Put(':lessonGroupId')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(...LESSON_MANAGE_PERMISSIONS)
+  @Permissions(Permission.ADMIN, Permission.MANAGE_LESSONS)
   async editLessonGroup(
     @Param('lessonGroupId') lessonGroupId: string,
     @Body() dto: EditLessonGroupRequestDto,
-    @LessonScope() scope: ILessonManageScopeModel,
   ): Promise<boolean> {
-    return await this.lessonsGroups.editLessonGroup(dto, lessonGroupId, scope);
+    return await this.lessonsGroups.editLessonGroup(dto, lessonGroupId);
   }
 
   @Delete(':lessonGroupId')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(...LESSON_MANAGE_PERMISSIONS)
-  async deleteLessonGroup(@Param('lessonGroupId') lessonGroupId: string, @LessonScope() scope: ILessonManageScopeModel): Promise<ILessonGroupItemModel> {
-    return await this.lessonsGroups.deleteLessonGroup(lessonGroupId, scope);
+  @Permissions(Permission.ADMIN, Permission.MANAGE_LESSONS)
+  async deleteLessonGroup(@Param('lessonGroupId') lessonGroupId: string): Promise<ILessonGroupItemModel> {
+    return await this.lessonsGroups.deleteLessonGroup(lessonGroupId);
   }
 
   @Post('with-lessons')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(...LESSON_MANAGE_PERMISSIONS)
-  async createLessonGroupWithLessons(@Body() dto: CreateLessonGroupWithLessonsRequestDto, @LessonScope() scope: ILessonManageScopeModel): Promise<ILessonGroupWithLessonsModel> {
-    return await this.lessonsGroups.createLessonGroupWithLessons(dto, scope);
+  @Permissions(Permission.ADMIN, Permission.MANAGE_LESSONS)
+  async createLessonGroupWithLessons(@Body() dto: CreateLessonGroupWithLessonsRequestDto): Promise<ILessonGroupWithLessonsModel> {
+    return await this.lessonsGroups.createLessonGroupWithLessons(dto);
   }
 
   @Post('generate-series')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(...LESSON_MANAGE_PERMISSIONS)
-  async generateLessonSeries(@Body() dto: GenerateLessonSeriesRequestDto, @LessonScope() scope: ILessonManageScopeModel): Promise<ILessonItemModel[]> {
-    return await this.lessonsGroups.generateLessonSeries(dto, scope);
+  @Permissions(Permission.ADMIN, Permission.MANAGE_LESSONS)
+  async generateLessonSeries(@Body() dto: GenerateLessonSeriesRequestDto): Promise<ILessonItemModel[]> {
+    return await this.lessonsGroups.generateLessonSeries(dto);
   }
 
   @Put(':lessonGroupId/lessons/:lessonId')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(...LESSON_MANAGE_PERMISSIONS)
+  @Permissions(Permission.ADMIN, Permission.MANAGE_LESSONS)
   async assignLessonToGroup(
     @Param('lessonGroupId') lessonGroupId: string,
     @Param('lessonId') lessonId: string,
-    @LessonScope() scope: ILessonManageScopeModel,
   ): Promise<boolean> {
-    return await this.lessonsGroups.assignLessonToGroup(lessonGroupId, lessonId, scope);
+    return await this.lessonsGroups.assignLessonToGroup(lessonGroupId, lessonId);
   }
 }

@@ -6,6 +6,7 @@ import { SemesterModule } from '../semester/semester.module';
 import { StudentGroupsModule } from '../student-groups/student-groups.module';
 import { LessonModule } from '../lesson/lesson.module';
 import { DepartmentsModule } from '../departments/departments.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { DepartmentsModule } from '../departments/departments.module';
     StudentGroupsModule,
     LessonModule,
     DepartmentsModule,
+    UsersModule,
   ],
   controllers: [DictionariesController,],
   providers: [DictionariesService,],

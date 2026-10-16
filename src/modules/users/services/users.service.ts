@@ -21,6 +21,7 @@ import { ICreateTeacherProfileModel } from '../models/create-teacher-profile.mod
 import { IEditTeacherProfileModel } from '../models/edit-teacher-profile.model';
 import { ITeacherProfileModel } from '../models/teacher-profile.model';
 import { IStudentProfileModel } from '../models/student-profile.model';
+import { ITeacherDictionaryItem } from '../models/teacher-dictionary-item.model';
 import { randomBytes } from 'crypto';
 
 @Injectable()
@@ -42,6 +43,16 @@ export class UsersService {
     private readonly rolesService: RolesService,
     private readonly passwordService: PasswordService,
   ) {}
+
+  async getTeachersDictionary(): Promise<ITeacherDictionaryItem[]> {
+    const teachers = await this.teachersRepository.find({
+      relations: { user: true, },
+      order: { user: { fullName: 'ASC', }, },
+    });
+    return teachers.map(
+      (t) => this.usersMapper.teacherToDictionaryItem(t)
+    );
+  }
 
   async getAll(params: IGetUsersFiltersModel): Promise<IGenericListPayloadResponse<IUserListItemModel>> {
     const { page, pageSize, search, } = params;

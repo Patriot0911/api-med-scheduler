@@ -16,8 +16,6 @@ import { IGenerateLessonSeriesModel } from '../models/lesson-groups/generate-les
 import { ICreateLessonGroupWithLessonsModel } from '../models/lesson-groups/create-lesson-group-with-lessons.model';
 import { ILessonGroupWithLessonsModel } from '../models/lesson-groups/lesson-group-with-lessons.model';
 import { ILessonItemModel } from '../models/lessons/lesson-item.model';
-import { LessonAccessService } from './lesson-access.service';
-import { ILessonManageScopeModel } from '../models/lesson-manage-scope.model';
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
@@ -27,6 +25,14 @@ interface IRecurrenceModel {
   dates?: Date[];
 }
 
+export type TLessonGroupOwnership = Pick<LessonsGroupEntity, 'createdByTeacherId' | 'departmentId'>;
+
+const NO_OWNERSHIP: TLessonGroupOwnership = { createdByTeacherId: null, departmentId: null, };
+
+/**
+ * General lesson groups logic without any scope restrictions (admin / manage_lessons).
+ * Scoped services check access first and then delegate here.
+ */
 @Injectable()
 export class LessonsGroupsService {
   constructor(
@@ -36,7 +42,6 @@ export class LessonsGroupsService {
     private lessonsRepository: Repository<LessonEntity>,
     private readonly lessonGroupsMapper: LessonGroupsMapper,
     private readonly lessonsService: LessonsService,
-    private readonly lessonAccessService: LessonAccessService,
   ) {}
 
   async getLessonGroupsDictionary(): Promise<ILessonGroupDictionaryItem[]> {
@@ -48,7 +53,7 @@ export class LessonsGroupsService {
     );
   }
 
-  async getAll(params: IGetLessonGroupsFiltersModel, scope: ILessonManageScopeModel): Promise<IGenericListPayloadResponse<ILessonGroupListItemModel>> {
+  async getAll(params: IGetLessonGroupsFiltersModel, departmentId?: string): Promise<IGenericListPayloadResponse<ILessonGroupListItemModel>> {
     const { page, pageSize, search, } = params;
     const lessonGroupsQb = this.lessonGroupsRepository
       .createQueryBuilder('lsgroups')
@@ -56,13 +61,13 @@ export class LessonsGroupsService {
       .take(pageSize);
 
     if (search) {
-      lessonGroupsQb.andWhere('lsgroups.name LIKE :search', { search, });
+      lessonGroupsQb.andWhere('lsgroups.name ILIKE :search', { search: `%${search}%`, });
     }
-    this.lessonAccessService.applyGroupScopeFilter(lessonGroupsQb, 'lsgroups', scope);
+    if (departmentId) {
+      lessonGroupsQb.andWhere('lsgroups.departmentId = :departmentId', { departmentId, });
+    }
 
-    const [lsGroupsData, total] = await lessonGroupsQb
-      .distinct(true)
-      .getManyAndCount();
+    const [lsGroupsData, total] = await lessonGroupsQb.getManyAndCount();
 
     return {
       items: lsGroupsData.map(
@@ -72,29 +77,24 @@ export class LessonsGroupsService {
     };
   }
 
-  async getById(lessonGroupId: string, scope: ILessonManageScopeModel): Promise<ILessonGroupItemModel> {
+  async getById(lessonGroupId: string): Promise<ILessonGroupItemModel> {
     const lessonGroup = await this.lessonGroupsRepository.findOneOrFail({
       where: { id: lessonGroupId, }
     });
-    this.lessonAccessService.assertCanUseGroup(scope, lessonGroup);
     return this.lessonGroupsMapper.entityToItem(lessonGroup);
   }
 
-  async createLessonGroup(data: ICreateLessonGroupModel, scope: ILessonManageScopeModel): Promise<ILessonGroupItemModel> {
+  async createLessonGroup(data: ICreateLessonGroupModel, ownership: TLessonGroupOwnership = NO_OWNERSHIP): Promise<ILessonGroupItemModel> {
     const newLessonGroup = this.lessonGroupsRepository.create({
       name: data.name,
       note: data.note,
-      ...this.lessonAccessService.groupOwnership(scope),
+      ...ownership,
     },);
     const createdLessonGroup = await this.lessonGroupsRepository.save(newLessonGroup);
     return this.lessonGroupsMapper.entityToItem(createdLessonGroup);
   }
 
-  async editLessonGroup(data: IEditLessonGroupModel, lessonGroupId: string, scope: ILessonManageScopeModel): Promise<boolean> {
-    const lessonGroup = await this.lessonGroupsRepository.findOneOrFail({
-      where: { id: lessonGroupId, },
-    });
-    this.lessonAccessService.assertCanManageGroup(scope, lessonGroup);
+  async editLessonGroup(data: IEditLessonGroupModel, lessonGroupId: string): Promise<boolean> {
     const updatedLessonGroup = await this.lessonGroupsRepository.update(
       { id: lessonGroupId, },
       {
@@ -105,30 +105,27 @@ export class LessonsGroupsService {
     return !!updatedLessonGroup.affected;
   }
 
-  async deleteLessonGroup(lessonGroupId: string, scope: ILessonManageScopeModel): Promise<ILessonGroupItemModel> {
+  async deleteLessonGroup(lessonGroupId: string): Promise<ILessonGroupItemModel> {
     const lessonGroupData = await this.lessonGroupsRepository.findOneOrFail({
       where: { id: lessonGroupId, }
     });
-    this.lessonAccessService.assertCanManageGroup(scope, lessonGroupData);
     const removedLessonGroup = await this.lessonGroupsRepository.remove(lessonGroupData);
-    return this.lessonGroupsMapper.entityToItem(removedLessonGroup);
+    return this.lessonGroupsMapper.entityToItem({ ...removedLessonGroup, id: lessonGroupId, });
   }
 
-  async assignLessonToGroup(lessonGroupId: string, lessonId: string, scope: ILessonManageScopeModel): Promise<boolean> {
+  async assignLessonToGroup(lessonGroupId: string, lessonId: string): Promise<boolean> {
     await this.lessonGroupsRepository.findOneOrFail({
       where: { id: lessonGroupId, },
     });
-    await this.lessonsService.editLessonForUser(lessonId, { lessonGroupId, }, scope);
+    await this.lessonsService.editLesson(lessonId, { lessonGroupId, });
     return true;
   }
 
-  async generateLessonSeries(data: IGenerateLessonSeriesModel, scope: ILessonManageScopeModel): Promise<ILessonItemModel[]> {
+  async generateLessonSeries(data: IGenerateLessonSeriesModel): Promise<ILessonItemModel[]> {
     const baseLesson = await this.lessonsRepository.findOneOrFail({
       where: { id: data.baseLessonId, },
-      relations: { teacherLessons: true, studentGroupLessons: true, lessonGroup: true, },
+      relations: { teacherLessons: true, studentGroupLessons: true, },
     });
-    await this.lessonAccessService.assertCanManageLesson(scope, baseLesson);
-    this.lessonAccessService.assertCanUseGroup(scope, baseLesson.lessonGroup);
 
     const dates = this.resolveRecurrenceDates(baseLesson.date, 1, data);
 
@@ -151,14 +148,16 @@ export class LessonsGroupsService {
     return createdLessons;
   }
 
-  async createLessonGroupWithLessons(data: ICreateLessonGroupWithLessonsModel, scope: ILessonManageScopeModel): Promise<ILessonGroupWithLessonsModel> {
-    await this.lessonAccessService.assertCanAssignTeachers(scope, data.teacherIds);
+  async createLessonGroupWithLessons(
+    data: ICreateLessonGroupWithLessonsModel,
+    ownership: TLessonGroupOwnership = NO_OWNERSHIP,
+  ): Promise<ILessonGroupWithLessonsModel> {
     const dates = this.resolveRecurrenceDates(data.date, 0, data);
 
     const newLessonGroup = this.lessonGroupsRepository.create({
       name: data.name,
       note: data.note,
-      ...this.lessonAccessService.groupOwnership(scope),
+      ...ownership,
     },);
     const createdLessonGroup = await this.lessonGroupsRepository.save(newLessonGroup);
 

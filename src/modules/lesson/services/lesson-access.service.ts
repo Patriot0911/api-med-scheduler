@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, In, Repository, SelectQueryBuilder } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { TeacherEntity } from 'src/modules/users/entities/teacher.entity';
 import { Permission } from 'src/shared/models/permission.enum';
 import { LessonEntity } from '../entities/lesson.entity';
@@ -131,28 +131,6 @@ export class LessonAccessService {
     if (!this.canManageGroup(scope, group)) {
       throw new ForbiddenException('You do not have access to manage this lesson group');
     }
-  }
-
-  /** Restricts a lesson-groups query to the groups `canUseGroup` would allow. */
-  applyGroupScopeFilter(qb: SelectQueryBuilder<LessonsGroupEntity>, alias: string, scope: ILessonManageScopeModel): void {
-    if (scope.kind === LessonManageScopeKind.ALL) {
-      return;
-    }
-    const me = scope.teacher!;
-    qb.andWhere(new Brackets((scopeQb) => {
-      scopeQb.where(`${alias}.createdByTeacherId = :scopeTeacherId`, { scopeTeacherId: me.id, });
-      if (me.departmentId) {
-        scopeQb.orWhere(`${alias}.departmentId = :scopeDepartmentId`, { scopeDepartmentId: me.departmentId, });
-      }
-    }));
-  }
-
-  /** Creator fields stamped onto a newly created lesson group. */
-  groupOwnership(scope: ILessonManageScopeModel): Pick<LessonsGroupEntity, 'createdByTeacherId' | 'departmentId'> {
-    return {
-      createdByTeacherId: scope.teacher?.id ?? null,
-      departmentId: scope.teacher?.departmentId ?? null,
-    };
   }
 
   private async allTeachersInDepartment(teacherIds: string[], departmentId: string | null): Promise<boolean> {
