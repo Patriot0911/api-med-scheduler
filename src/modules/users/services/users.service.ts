@@ -178,6 +178,13 @@ export class UsersService {
           where: { id: data.departmentId, },
         });
       }
+      if (teacherProfile.departmentId && teacherProfile.departmentId !== data.departmentId) {
+        // a head who leaves the department stops being its head
+        await this.departmentsRepository.update(
+          { id: teacherProfile.departmentId, headTeacherId: teacherProfile.id, },
+          { headTeacherId: null, },
+        );
+      }
       teacherProfile.departmentId = data.departmentId ?? null;
     }
 

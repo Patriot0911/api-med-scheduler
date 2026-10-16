@@ -12,16 +12,15 @@ export class LessonGroupsMapper {
   }
 
   entityToListItem(entity: LessonsGroupEntity): ILessonGroupListItemModel {
-    const { id, name, note, } = entity;
-    return {
-      id, name, note,
-    };
+    return this.entityToItem(entity);
   }
 
   entityToItem(entity: LessonsGroupEntity): ILessonGroupItemModel {
-    const { id, name, note, } = entity;
+    const { id, name, note, createdByTeacherId, departmentId, } = entity;
     return {
       id, name, note,
+      createdByTeacherId: createdByTeacherId ?? null,
+      departmentId: departmentId ?? null,
     };
   }
 }

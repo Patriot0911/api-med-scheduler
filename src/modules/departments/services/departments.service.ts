@@ -10,6 +10,8 @@ import { IDepartmentListItemModel } from '../models/department-list-item.model';
 import { IDepartmentItemModel } from '../models/department-item.model';
 import { ICreateDepartmentModel } from '../models/create-department.model';
 import { IEditDepartmentModel } from '../models/edit-department.model';
+import { ISetDepartmentHeadModel } from '../models/set-department-head.model';
+import { TeacherEntity } from 'src/modules/users/entities/teacher.entity';
 
 @Injectable()
 export class DepartmentsService {
@@ -17,6 +19,8 @@ export class DepartmentsService {
     private readonly departmentsMapper: DepartmentsMapper,
     @InjectRepository(DepartmentEntity)
     private departmentsRepository: Repository<DepartmentEntity>,
+    @InjectRepository(TeacherEntity)
+    private teachersRepository: Repository<TeacherEntity>,
   ) {}
 
   async getDepartmentsDictionary(): Promise<IDepartmentDictionaryItem[]> {
@@ -74,6 +78,25 @@ export class DepartmentsService {
       { name: data.name, },
     );
     return !!updatedDepartment.affected;
+  }
+
+  async setDepartmentHead(departmentId: string, data: ISetDepartmentHeadModel): Promise<IDepartmentItemModel> {
+    const department = await this.departmentsRepository.findOneOrFail({
+      where: { id: departmentId, },
+    });
+
+    if (data.teacherId) {
+      const teacher = await this.teachersRepository.findOneOrFail({
+        where: { id: data.teacherId, },
+      });
+      if (teacher.departmentId !== departmentId) {
+        throw new BadRequestException('The head must be a teacher of this department');
+      }
+    }
+
+    department.headTeacherId = data.teacherId ?? null;
+    const updatedDepartment = await this.departmentsRepository.save(department);
+    return this.departmentsMapper.entityToItem(updatedDepartment);
   }
 
   async deleteDepartment(departmentId: string): Promise<IDepartmentItemModel> {

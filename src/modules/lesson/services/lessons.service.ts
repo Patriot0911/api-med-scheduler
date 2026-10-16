@@ -16,6 +16,9 @@ import { StudentGroupLessonEntity } from '../entities/student-group-lesson.entit
 import { TeacherEntity } from 'src/modules/users/entities/teacher.entity';
 import { StudentEntity } from 'src/modules/users/entities/student.entity';
 import { Permission } from 'src/shared/models/permission.enum';
+import { LessonsGroupEntity } from '../entities/lessons-group.entity';
+import { LessonAccessService } from './lesson-access.service';
+import { ILessonManageScopeModel } from '../models/lesson-manage-scope.model';
 
 @Injectable()
 export class LessonsService {
@@ -30,7 +33,10 @@ export class LessonsService {
     private teachersRepository: Repository<TeacherEntity>,
     @InjectRepository(StudentEntity)
     private studentsRepository: Repository<StudentEntity>,
+    @InjectRepository(LessonsGroupEntity)
+    private lessonGroupsRepository: Repository<LessonsGroupEntity>,
     private readonly lessonsMapper: LessonsMapper,
+    private readonly lessonAccessService: LessonAccessService,
   ) {}
 
   async getAll(
@@ -134,6 +140,44 @@ export class LessonsService {
     return this.getById(createdLesson.id);
   }
 
+  async createLessonForUser(data: ICreateLessonModel, scope: ILessonManageScopeModel): Promise<ILessonItemModel> {
+    await this.lessonAccessService.assertCanAssignTeachers(scope, data.teacherIds);
+    if (data.lessonGroupId) {
+      const lessonGroup = await this.lessonGroupsRepository.findOneOrFail({
+        where: { id: data.lessonGroupId, },
+      });
+      this.lessonAccessService.assertCanUseGroup(scope, lessonGroup);
+    }
+    return this.createLesson(data);
+  }
+
+  async editLessonForUser(lessonId: string, data: IEditLessonModel, scope: ILessonManageScopeModel): Promise<ILessonItemModel> {
+    const lesson = await this.lessonsRepository.findOneOrFail({
+      where: { id: lessonId, },
+      relations: { teacherLessons: true, },
+    });
+    await this.lessonAccessService.assertCanManageLesson(scope, lesson);
+    if (data.teacherIds !== undefined) {
+      await this.lessonAccessService.assertCanAssignTeachers(scope, data.teacherIds);
+    }
+    if (data.lessonGroupId && data.lessonGroupId !== lesson.lessonGroupId) {
+      const lessonGroup = await this.lessonGroupsRepository.findOneOrFail({
+        where: { id: data.lessonGroupId, },
+      });
+      this.lessonAccessService.assertCanUseGroup(scope, lessonGroup);
+    }
+    return this.editLesson(lessonId, data);
+  }
+
+  async deleteLessonForUser(lessonId: string, scope: ILessonManageScopeModel): Promise<void> {
+    const lesson = await this.lessonsRepository.findOneOrFail({
+      where: { id: lessonId, },
+      relations: { teacherLessons: true, },
+    });
+    await this.lessonAccessService.assertCanManageLesson(scope, lesson);
+    await this.lessonsRepository.remove(lesson);
+  }
+
   async editLesson(lessonId: string, { teacherIds, studentGroupIds, ...data }: IEditLessonModel): Promise<ILessonItemModel> {
     const lesson = await this.lessonsRepository.findOneOrFail({
       where: { id: lessonId, },
@@ -218,6 +262,21 @@ export class LessonsService {
     return permissions.includes(Permission.ADMIN) || permissions.includes(Permission.MANAGE_LESSONS);
   }
 
+  private async getVisibleDepartmentId(
+    lesson: Pick<LessonEntity, 'visibility'>,
+    permissions: Permission[],
+    teacherProfile: TeacherEntity | null,
+  ): Promise<string | null> {
+    const headDepartmentId = await this.lessonAccessService.getHeadedDepartmentId(teacherProfile, permissions);
+    if (headDepartmentId) {
+      return headDepartmentId;
+    }
+    if (lesson.visibility === LessonVisibility.DEPARTMENT) {
+      return teacherProfile?.departmentId ?? null;
+    }
+    return null;
+  }
+
   private isLessonVisibleToUser(
     lesson: Pick<LessonEntity, 'visibility' | 'teacherLessons' | 'studentGroupLessons'>,
     teacherProfile: TeacherEntity | null,
@@ -248,9 +307,24 @@ export class LessonsService {
       this.studentsRepository.findOne({ where: { userId, }, }),
     ]);
 
-    if (!this.isLessonVisibleToUser(lesson, teacherProfile, studentProfile)) {
-      throw new ForbiddenException('You do not have access to this lesson');
+    if (this.isLessonVisibleToUser(lesson, teacherProfile, studentProfile)) {
+      return;
     }
+
+    const departmentId = await this.getVisibleDepartmentId(lesson, permissions, teacherProfile);
+    if (departmentId) {
+      const lessonTeacherIds = lesson.teacherLessons.map((teacherLesson) => teacherLesson.teacherId);
+      if (lessonTeacherIds.length > 0) {
+        const departmentTeachersCount = await this.teachersRepository.count({
+          where: { id: In(lessonTeacherIds), departmentId, },
+        });
+        if (departmentTeachersCount > 0) {
+          return;
+        }
+      }
+    }
+
+    throw new ForbiddenException('You do not have access to this lesson');
   }
 
   private async applyVisibilityFilter(
@@ -267,25 +341,52 @@ export class LessonsService {
       this.studentsRepository.findOne({ where: { userId, }, }),
     ]);
 
+    const headDepartmentId = await this.lessonAccessService.getHeadedDepartmentId(teacherProfile, permissions);
+
     qb.andWhere(new Brackets((visibilityQb) => {
       visibilityQb.where('ls.visibility = :publicVisibility', { publicVisibility: LessonVisibility.PUBLIC, });
+
+      // department-visible lessons are a superset of restricted ones: assigned teachers/groups still see them
+      const assignedVisibilities = [LessonVisibility.RESTRICTED, LessonVisibility.DEPARTMENT];
 
       if (teacherProfile) {
         visibilityQb.orWhere('ls.visibility = :teachersVisibility', { teachersVisibility: LessonVisibility.TEACHERS, });
         visibilityQb.orWhere(
-          `(ls.visibility = :restrictedVisibility AND EXISTS (
+          `(ls.visibility IN (:...assignedVisibilities) AND EXISTS (
             SELECT 1 FROM teacher_lesson vtl WHERE vtl.lesson_id = ls.id AND vtl.teacher_id = :myTeacherId
           ))`,
-          { restrictedVisibility: LessonVisibility.RESTRICTED, myTeacherId: teacherProfile.id, },
+          { assignedVisibilities, myTeacherId: teacherProfile.id, },
+        );
+      }
+
+      if (teacherProfile?.departmentId) {
+        visibilityQb.orWhere(
+          `(ls.visibility = :departmentVisibility AND EXISTS (
+            SELECT 1 FROM teacher_lesson vdtl
+            INNER JOIN teachers vdt ON vdt.id = vdtl.teacher_id
+            WHERE vdtl.lesson_id = ls.id AND vdt.department_id = :myTeacherDepartmentId
+          ))`,
+          { departmentVisibility: LessonVisibility.DEPARTMENT, myTeacherDepartmentId: teacherProfile.departmentId, },
+        );
+      }
+
+      if (headDepartmentId) {
+        visibilityQb.orWhere(
+          `EXISTS (
+            SELECT 1 FROM teacher_lesson dtl
+            INNER JOIN teachers dt ON dt.id = dtl.teacher_id
+            WHERE dtl.lesson_id = ls.id AND dt.department_id = :myDepartmentId
+          )`,
+          { myDepartmentId: headDepartmentId, },
         );
       }
 
       if (studentProfile?.studentGroupId) {
         visibilityQb.orWhere(
-          `(ls.visibility = :restrictedVisibility AND EXISTS (
+          `(ls.visibility IN (:...assignedVisibilities) AND EXISTS (
             SELECT 1 FROM student_group_lesson vsgl WHERE vsgl.lesson_id = ls.id AND vsgl.student_group_id = :myStudentGroupId
           ))`,
-          { restrictedVisibility: LessonVisibility.RESTRICTED, myStudentGroupId: studentProfile.studentGroupId, },
+          { assignedVisibilities, myStudentGroupId: studentProfile.studentGroupId, },
         );
       }
     }));

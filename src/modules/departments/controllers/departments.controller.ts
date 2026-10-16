@@ -9,6 +9,7 @@ import { DepartmentsService } from '../services/departments.service';
 import { GetDepartmentsRequestDto } from '../dto/get-departments-request.dto';
 import { CreateDepartmentRequestDto } from '../dto/create-department-request.dto';
 import { EditDepartmentRequestDto } from '../dto/edit-department-request.dto';
+import { SetDepartmentHeadRequestDto } from '../dto/set-department-head-request.dto';
 import { IDepartmentListItemModel } from '../models/department-list-item.model';
 import { IDepartmentItemModel } from '../models/department-item.model';
 
@@ -49,6 +50,14 @@ export class DepartmentsController {
   @Permissions(Permission.MANAGE_DEPARTMENTS, Permission.ADMIN)
   async editDepartment(@Param('departmentId') departmentId: string, @Body() data: EditDepartmentRequestDto): Promise<boolean> {
     return await this.departmentsService.editDepartment(data, departmentId);
+  }
+
+  @Put(':departmentId/head')
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard, PermissionsGuard)
+  @Permissions(Permission.MANAGE_DEPARTMENTS, Permission.ADMIN)
+  async setDepartmentHead(@Param('departmentId') departmentId: string, @Body() data: SetDepartmentHeadRequestDto): Promise<IDepartmentItemModel> {
+    return await this.departmentsService.setDepartmentHead(departmentId, data);
   }
 
   @Delete(':departmentId')

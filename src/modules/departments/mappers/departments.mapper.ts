@@ -16,7 +16,7 @@ export class DepartmentsMapper {
   }
 
   entityToItem(entity: DepartmentEntity): IDepartmentItemModel {
-    const { id, name, } = entity;
-    return { id, name, };
+    const { id, name, headTeacherId, } = entity;
+    return { id, name, headTeacherId: headTeacherId ?? null, };
   }
 }

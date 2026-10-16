@@ -70,7 +70,7 @@ export class CreateLessonGroupWithLessonsRequestDto implements ICreateLessonGrou
   @ApiPropertyOptional({
     enum: LessonVisibility,
     default: LessonVisibility.RESTRICTED,
-    description: 'public — visible to any authenticated user; teachers — visible to any teacher; restricted — visible only to the assigned teachers/groups (default)',
+    description: 'public — visible to any authenticated user; teachers — visible to any teacher; department — visible to teachers of the same department as any of the lesson teachers, plus assigned groups; restricted — visible only to the assigned teachers/groups (default)',
   })
   @IsOptional()
   @IsEnum(LessonVisibility)

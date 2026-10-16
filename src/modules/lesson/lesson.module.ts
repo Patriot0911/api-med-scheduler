@@ -12,6 +12,8 @@ import { StudentGroupLessonEntity } from './entities/student-group-lesson.entity
 import { TeacherLessonEntity } from './entities/teacher-lesson.entity';
 import { TeacherEntity } from '../users/entities/teacher.entity';
 import { StudentEntity } from '../users/entities/student.entity';
+import { LessonAccessService } from './services/lesson-access.service';
+import { DepartmentEntity } from '../departments/entities/department.entity';
 
 @Module({
   imports: [
@@ -22,6 +24,7 @@ import { StudentEntity } from '../users/entities/student.entity';
       TeacherLessonEntity,
       TeacherEntity,
       StudentEntity,
+      DepartmentEntity,
     ]),
   ],
   controllers: [
@@ -33,6 +36,7 @@ import { StudentEntity } from '../users/entities/student.entity';
     LessonGroupsMapper,
     LessonsService,
     LessonsMapper,
+    LessonAccessService,
   ],
   exports: [
     LessonsService,
