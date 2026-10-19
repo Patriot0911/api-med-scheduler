@@ -1,52 +1,45 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Brackets, Repository, SelectQueryBuilder } from 'typeorm';
 import { TeacherEntity } from 'src/modules/users/entities/teacher.entity';
+import { StudentEntity } from 'src/modules/users/entities/student.entity';
+import { IAccessTokenPayload } from 'src/modules/auth/models/access-token-payload.model';
+import { DepartmentEntity } from 'src/modules/departments/entities/department.entity';
 import { Permission } from 'src/shared/models/permission.enum';
 import { LessonEntity } from '../entities/lesson.entity';
 import { LessonsGroupEntity } from '../entities/lessons-group.entity';
 import { ILessonManageScopeModel, LessonManageScopeKind } from '../models/lesson-manage-scope.model';
-import { DepartmentEntity } from 'src/modules/departments/entities/department.entity';
+import { IEditLessonModel } from '../models/lessons/edit-lesson.model';
+import { ILessonReaderModel } from '../models/lesson-reader.model';
+import { LessonVisibility } from '../models/lesson-visibility.enum';
 
 export const LESSON_MANAGE_PERMISSIONS = [
   Permission.ADMIN,
   Permission.MANAGE_LESSONS,
-  Permission.MANAGE_DEPARTMENT_LESSONS,
   Permission.MANAGE_OWN_LESSONS,
 ];
 
 /**
- * Decides what a user may create/edit/delete among lessons and lesson groups.
+ * Decides which lessons a user sees (reader, see applyVisibility)
+ * and what they may create/edit/delete among lessons and lesson groups (scope):
  *
- * - ALL: admin / manage_lessons, no restrictions.
- * - DEPARTMENT: manage_department_lessons + the actor is the configured head of their department
- *   (departments.head_teacher_id). Lessons whose teachers all belong to that department.
- *   The permission alone grants nothing until the head is configured.
- * - OWN: manage_own_lessons.
- *   Lessons where the actor is one of the teachers; co-teachers must be from the actor's department.
+ * - ALL: admin / manage_lessons, no restrictions; any owner, any department.
+ * - TEACHER: any teacher profile.
+ *   Creates lessons (manage_own_lessons, checked by the route guard) only on their own name,
+ *   with no department or their own one. Co-teachers may be from any department.
+ *   The owner manages the lesson fully: fields, department, teachers, editors, deletion.
+ *   Editors (teacher_lesson.can_edit, granted by the owner) may change the lesson fields only.
  */
 @Injectable()
 export class LessonAccessService {
   constructor(
     @InjectRepository(TeacherEntity)
     private teachersRepository: Repository<TeacherEntity>,
+    @InjectRepository(StudentEntity)
+    private studentsRepository: Repository<StudentEntity>,
     @InjectRepository(DepartmentEntity)
     private departmentsRepository: Repository<DepartmentEntity>,
   ) {}
-
-  /**
-   * Department the teacher heads, if they have manage_department_lessons
-   * and are configured as that department's head. Otherwise null.
-   */
-  async getHeadedDepartmentId(teacher: TeacherEntity | null, permissions: Permission[]): Promise<string | null> {
-    if (!teacher?.departmentId || !permissions.includes(Permission.MANAGE_DEPARTMENT_LESSONS)) {
-      return null;
-    }
-    const isHead = await this.departmentsRepository.exists({
-      where: { id: teacher.departmentId, headTeacherId: teacher.id, },
-    });
-    return isHead ? teacher.departmentId : null;
-  }
 
   async resolveScope(userId: string, permissions: Permission[]): Promise<ILessonManageScopeModel> {
     const teacher = await this.teachersRepository.findOne({ where: { userId, }, });
@@ -54,52 +47,165 @@ export class LessonAccessService {
     if (permissions.includes(Permission.ADMIN) || permissions.includes(Permission.MANAGE_LESSONS)) {
       return { kind: LessonManageScopeKind.ALL, teacher, };
     }
-
-    if (await this.getHeadedDepartmentId(teacher, permissions)) {
-      return { kind: LessonManageScopeKind.DEPARTMENT, teacher, };
+    if (teacher) {
+      return { kind: LessonManageScopeKind.TEACHER, teacher, };
     }
-    if (teacher && permissions.includes(Permission.MANAGE_OWN_LESSONS)) {
-      return { kind: LessonManageScopeKind.OWN, teacher, };
-    }
-    throw new ForbiddenException('You do not have permission to manage lessons');
+    throw new ForbiddenException('Only teachers can manage lessons');
   }
 
-  async assertCanAssignTeachers(scope: ILessonManageScopeModel, teacherIds: string[] | undefined): Promise<void> {
+  /** Undefined user: an anonymous reader. */
+  async resolveReader(user: IAccessTokenPayload | undefined): Promise<ILessonReaderModel> {
+    if (!user) {
+      return { isAuthenticated: false, seesAll: false, teacherId: null, departmentId: null, studentGroupId: null, };
+    }
+    const [teacher, student] = await Promise.all([
+      this.teachersRepository.findOne({ where: { userId: user.sub, }, }),
+      this.studentsRepository.findOne({ where: { userId: user.sub, }, }),
+    ]);
+    return {
+      isAuthenticated: true,
+      seesAll: user.permissions.includes(Permission.ADMIN) || user.permissions.includes(Permission.MANAGE_LESSONS),
+      teacherId: teacher?.id ?? null,
+      departmentId: teacher?.departmentId ?? null,
+      studentGroupId: student?.studentGroupId ?? null,
+    };
+  }
+
+  readerFromScope(scope: ILessonManageScopeModel): ILessonReaderModel {
+    return {
+      isAuthenticated: true,
+      seesAll: scope.kind === LessonManageScopeKind.ALL,
+      teacherId: scope.teacher?.id ?? null,
+      departmentId: scope.teacher?.departmentId ?? null,
+      studentGroupId: null,
+    };
+  }
+
+  /**
+   * - anonymous: public lessons only;
+   * - department-only lessons: members of the lesson's department, the lesson teachers,
+   *   students of its groups and admin / manage_lessons;
+   * - everything else: any authenticated user.
+   */
+  applyVisibility(lessonsQb: SelectQueryBuilder<LessonEntity>, reader: ILessonReaderModel): SelectQueryBuilder<LessonEntity> {
+    if (reader.seesAll) {
+      return lessonsQb;
+    }
+    if (!reader.isAuthenticated) {
+      return lessonsQb.andWhere('ls.visibility = :publicVisibility', { publicVisibility: LessonVisibility.PUBLIC, });
+    }
+    return lessonsQb.andWhere(new Brackets((visibilityQb) => {
+      visibilityQb.where('ls.visibility != :departmentVisibility', { departmentVisibility: LessonVisibility.DEPARTMENT, });
+      if (reader.departmentId) {
+        visibilityQb.orWhere('ls.departmentId = :readerDepartmentId', { readerDepartmentId: reader.departmentId, });
+      }
+      if (reader.teacherId) {
+        visibilityQb.orWhere(
+          'EXISTS (SELECT 1 FROM teacher_lesson vtl WHERE vtl.lesson_id = ls.id AND vtl.teacher_id = :readerTeacherId)',
+          { readerTeacherId: reader.teacherId, },
+        );
+      }
+      if (reader.studentGroupId) {
+        visibilityQb.orWhere(
+          'EXISTS (SELECT 1 FROM student_group_lesson vsgl WHERE vsgl.lesson_id = ls.id AND vsgl.student_group_id = :readerStudentGroupId)',
+          { readerStudentGroupId: reader.studentGroupId, },
+        );
+      }
+    }));
+  }
+
+  /** Same rule as applyVisibility, for a loaded lesson. Hidden lessons are reported as missing. */
+  assertCanSeeLesson(
+    reader: ILessonReaderModel,
+    lesson: Pick<LessonEntity, 'visibility' | 'departmentId' | 'teacherLessons' | 'studentGroupLessons'>,
+  ): void {
+    if (!this.canSeeLesson(reader, lesson)) {
+      throw new NotFoundException('Lesson not found');
+    }
+  }
+
+  private canSeeLesson(
+    reader: ILessonReaderModel,
+    lesson: Pick<LessonEntity, 'visibility' | 'departmentId' | 'teacherLessons' | 'studentGroupLessons'>,
+  ): boolean {
+    if (reader.seesAll || lesson.visibility === LessonVisibility.PUBLIC) {
+      return true;
+    }
+    if (!reader.isAuthenticated) {
+      return false;
+    }
+    return lesson.visibility !== LessonVisibility.DEPARTMENT
+      || (!!reader.departmentId && lesson.departmentId === reader.departmentId)
+      || (!!reader.teacherId && lesson.teacherLessons.some((teacherLesson) => teacherLesson.teacherId === reader.teacherId))
+      || (!!reader.studentGroupId && lesson.studentGroupLessons.some(
+        (studentGroupLesson) => studentGroupLesson.studentGroupId === reader.studentGroupId,
+      ));
+  }
+
+  /** Owner of a new lesson: the actor themselves, or any teacher for admin / manage_lessons. */
+  resolveOwnerId(scope: ILessonManageScopeModel, ownerTeacherId: string | undefined): string {
+    if (scope.kind === LessonManageScopeKind.ALL) {
+      const ownerId = ownerTeacherId ?? scope.teacher?.id;
+      if (!ownerId) {
+        throw new BadRequestException('ownerTeacherId is required');
+      }
+      return ownerId;
+    }
+    const me = scope.teacher!;
+    if (ownerTeacherId && ownerTeacherId !== me.id) {
+      throw new ForbiddenException('You can only create lessons on your own name');
+    }
+    return me.id;
+  }
+
+  /**
+   * Department of a lesson: none, or an existing department.
+   * Non-admins may set only the department they are a member of.
+   */
+  async assertCanSetDepartment(scope: ILessonManageScopeModel, departmentId: string | null | undefined): Promise<void> {
+    if (!departmentId) {
+      return;
+    }
+    if (scope.kind !== LessonManageScopeKind.ALL && scope.teacher!.departmentId !== departmentId) {
+      throw new ForbiddenException('You can only set your own department for the lesson');
+    }
+    await this.departmentsRepository.findOneOrFail({ where: { id: departmentId, }, });
+  }
+
+  /** Owner: anything but transferring ownership. Editors: lesson fields only, not its teachers or department. */
+  assertCanEditLesson(scope: ILessonManageScopeModel, lesson: Pick<LessonEntity, 'teacherLessons'>, data: IEditLessonModel): void {
     if (scope.kind === LessonManageScopeKind.ALL) {
       return;
     }
     const me = scope.teacher!;
-    const ids = [...new Set(teacherIds ?? [])];
+    const myTeacherLesson = lesson.teacherLessons.find((teacherLesson) => teacherLesson.teacherId === me.id);
 
-    if (ids.length === 0) {
-      throw new BadRequestException('At least one teacher must be assigned to the lesson');
-    }
-    if (scope.kind === LessonManageScopeKind.OWN && !ids.includes(me.id)) {
-      throw new ForbiddenException('You can only manage lessons where you are one of the teachers');
-    }
-
-    const otherIds = ids.filter((id) => id !== me.id);
-    if (otherIds.length === 0) {
+    if (myTeacherLesson?.isOwner) {
+      if (data.ownerTeacherId !== undefined && data.ownerTeacherId !== me.id) {
+        throw new ForbiddenException('Only admin can transfer the lesson to another owner');
+      }
       return;
     }
-    if (!(await this.allTeachersInDepartment(otherIds, me.departmentId))) {
-      throw new ForbiddenException('Only teachers of your department can be assigned to the lesson');
+    if (myTeacherLesson?.canEdit) {
+      const ownerOnlyFields = [data.ownerTeacherId, data.teacherIds, data.editorTeacherIds, data.departmentId];
+      if (ownerOnlyFields.some((value) => value !== undefined)) {
+        throw new ForbiddenException('Only the lesson owner can change its teachers and department');
+      }
+      return;
     }
+    throw new ForbiddenException('You do not have access to edit this lesson');
   }
 
-  async assertCanManageLesson(scope: ILessonManageScopeModel, lesson: Pick<LessonEntity, 'teacherLessons'>): Promise<void> {
+  /** Deleting a lesson or generating a series from it. */
+  assertIsLessonOwner(scope: ILessonManageScopeModel, lesson: Pick<LessonEntity, 'teacherLessons'>): void {
     if (scope.kind === LessonManageScopeKind.ALL) {
       return;
     }
-    const me = scope.teacher!;
-    const teacherIds = lesson.teacherLessons.map((teacherLesson) => teacherLesson.teacherId);
-
-    const canManage = scope.kind === LessonManageScopeKind.OWN
-      ? teacherIds.includes(me.id)
-      : teacherIds.length > 0 && await this.allTeachersInDepartment(teacherIds, me.departmentId);
-
-    if (!canManage) {
-      throw new ForbiddenException('You do not have access to manage this lesson');
+    const isOwner = lesson.teacherLessons.some(
+      (teacherLesson) => teacherLesson.isOwner && teacherLesson.teacherId === scope.teacher!.id,
+    );
+    if (!isOwner) {
+      throw new ForbiddenException('Only the lesson owner can do this');
     }
   }
 
@@ -115,10 +221,10 @@ export class LessonAccessService {
 
   /** Whether the group itself may be edited or deleted. */
   canManageGroup(scope: ILessonManageScopeModel, group: Pick<LessonsGroupEntity, 'createdByTeacherId' | 'departmentId'>): boolean {
-    if (scope.kind === LessonManageScopeKind.OWN) {
-      return group.createdByTeacherId === scope.teacher!.id;
+    if (scope.kind === LessonManageScopeKind.ALL) {
+      return true;
     }
-    return this.canUseGroup(scope, group);
+    return group.createdByTeacherId === scope.teacher!.id;
   }
 
   assertCanUseGroup(scope: ILessonManageScopeModel, group: Pick<LessonsGroupEntity, 'createdByTeacherId' | 'departmentId'>): void {
@@ -131,17 +237,5 @@ export class LessonAccessService {
     if (!this.canManageGroup(scope, group)) {
       throw new ForbiddenException('You do not have access to manage this lesson group');
     }
-  }
-
-  private async allTeachersInDepartment(teacherIds: string[], departmentId: string | null): Promise<boolean> {
-    if (!departmentId) {
-      return false;
-    }
-    const teachers = await this.teachersRepository.find({
-      where: { id: In(teacherIds), },
-      select: ['id', 'departmentId',],
-    });
-    return teachers.length === teacherIds.length
-      && teachers.every((teacher) => teacher.departmentId === departmentId);
   }
 }

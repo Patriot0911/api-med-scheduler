@@ -12,14 +12,11 @@ import { StudentGroupLessonEntity } from './entities/student-group-lesson.entity
 import { TeacherLessonEntity } from './entities/teacher-lesson.entity';
 import { TeacherEntity } from '../users/entities/teacher.entity';
 import { LessonAccessService } from './services/lesson-access.service';
-import { DepartmentLessonsService } from './services/department-lessons.service';
-import { DepartmentLessonsController } from './controllers/department-lessons.controller';
-import { DepartmentLessonGroupsService } from './services/department-lesson-groups.service';
-import { DepartmentLessonGroupsController } from './controllers/department-lesson-groups.controller';
 import { MyLessonsService } from './services/my-lessons.service';
-import { MyLessonsController } from './controllers/my-lessons.controller';
 import { StudentEntity } from '../users/entities/student.entity';
 import { DepartmentEntity } from '../departments/entities/department.entity';
+import { ManagedLessonsService } from './services/managed-lessons.service';
+import { ManagedLessonGroupsService } from './services/managed-lesson-groups.service';
 
 @Module({
   imports: [
@@ -35,10 +32,7 @@ import { DepartmentEntity } from '../departments/entities/department.entity';
   ],
   controllers: [
     LessonsController,
-    MyLessonsController,
     LessonsGroupsController,
-    DepartmentLessonsController,
-    DepartmentLessonGroupsController,
   ],
   providers: [
     LessonsGroupsService,
@@ -46,9 +40,9 @@ import { DepartmentEntity } from '../departments/entities/department.entity';
     LessonsService,
     LessonsMapper,
     LessonAccessService,
-    DepartmentLessonsService,
-    DepartmentLessonGroupsService,
     MyLessonsService,
+    ManagedLessonsService,
+    ManagedLessonGroupsService,
   ],
   exports: [
     LessonsService,

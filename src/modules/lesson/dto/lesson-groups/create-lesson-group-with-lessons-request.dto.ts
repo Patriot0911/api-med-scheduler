@@ -32,10 +32,31 @@ export class CreateLessonGroupWithLessonsRequestDto implements ICreateLessonGrou
   @ApiProperty({ example: 50, description: 'lesson`s duration in minutes' })
   duration: number;
 
-  @ApiProperty({ description: 'Teacher profile ids (TeacherEntity.id, not user id)' })
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Department of the group and its lessons, optional. Non-admins may set only their own department.',
+  })
+  @IsOptional()
+  @IsUUID()
+  departmentId?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Owner teacher profile id. Defaults to the acting teacher; only admin / manage_lessons may set someone else.',
+  })
+  @IsOptional()
+  @IsUUID()
+  ownerTeacherId?: string;
+
+  @ApiProperty({ description: 'Teacher profile ids (TeacherEntity.id, not user id), from any department. The owner is added automatically.' })
   @IsArray()
   @IsString({ each: true })
   teacherIds: string[];
+
+  @ApiPropertyOptional({ description: 'Co-teachers allowed to edit the lessons, a subset of teacherIds' })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  editorTeacherIds?: string[];
 
   @ApiProperty()
   @IsArray()
@@ -69,8 +90,8 @@ export class CreateLessonGroupWithLessonsRequestDto implements ICreateLessonGrou
 
   @ApiPropertyOptional({
     enum: LessonVisibility,
-    default: LessonVisibility.RESTRICTED,
-    description: 'public — visible to any authenticated user; teachers — visible to any teacher; department — visible to teachers of the same department as any of the lesson teachers, plus assigned groups; restricted — visible only to the assigned teachers/groups (default)',
+    default: LessonVisibility.AUTHENTICATED,
+    description: 'public — visible to everyone, including the public calendar; authenticated — visible to any signed-in user (default); department — only members of the lesson\'s department, the lesson teachers and admin / manage_lessons, 404 for anyone else (requires a department)',
   })
   @IsOptional()
   @IsEnum(LessonVisibility)

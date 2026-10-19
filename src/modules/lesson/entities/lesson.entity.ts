@@ -4,6 +4,7 @@ import { SemesterEntity } from 'src/modules/semester/entities/semester.entity';
 import { StudentGroupLessonEntity } from './student-group-lesson.entity';
 import { TeacherLessonEntity } from './teacher-lesson.entity';
 import { LessonVisibility } from '../models/lesson-visibility.enum';
+import { DepartmentEntity } from 'src/modules/departments/entities/department.entity';
 
 @Entity('lessons')
 export class LessonEntity {
@@ -45,10 +46,18 @@ export class LessonEntity {
   @Column({ name: 'lesson_group_id' })
   lessonGroupId: string;
 
+  // Optional: the owner may have no department.
+  @ManyToOne(() => DepartmentEntity, { nullable: true, onDelete: 'SET NULL', })
+  @JoinColumn({ name: 'department_id' })
+  department?: DepartmentEntity | null;
+
+  @Column({ name: 'department_id', type: 'uuid', nullable: true, })
+  departmentId: string | null;
+
   @Column({
     type: 'enum',
     enum: LessonVisibility,
-    default: LessonVisibility.RESTRICTED,
+    default: LessonVisibility.AUTHENTICATED,
   })
   visibility: LessonVisibility;
 }

@@ -36,10 +36,31 @@ export class CreateLessonRequestDto implements ICreateLessonModel {
   @IsOptional()
   delayedDate?: Date;
 
-  @ApiProperty({ description: 'Teacher profile ids (TeacherEntity.id, not user id)' })
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Department of the lesson, optional. Non-admins may set only their own department.',
+  })
+  @IsOptional()
+  @IsUUID()
+  departmentId?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Owner teacher profile id. Defaults to the acting teacher; only admin / manage_lessons may set someone else.',
+  })
+  @IsOptional()
+  @IsUUID()
+  ownerTeacherId?: string;
+
+  @ApiProperty({ description: 'Teacher profile ids (TeacherEntity.id, not user id), from any department. The owner is added automatically.' })
   @IsArray()
   @IsString({ each: true })
   teacherIds: string[];
+
+  @ApiPropertyOptional({ description: 'Co-teachers allowed to edit the lesson, a subset of teacherIds. Set by the owner or admin / manage_lessons.' })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  editorTeacherIds?: string[];
 
   @ApiProperty()
   @IsArray()
@@ -58,8 +79,8 @@ export class CreateLessonRequestDto implements ICreateLessonModel {
 
   @ApiPropertyOptional({
     enum: LessonVisibility,
-    default: LessonVisibility.RESTRICTED,
-    description: 'public — visible to any authenticated user; teachers — visible to any teacher; department — visible to teachers of the same department as any of the lesson teachers, plus assigned groups; restricted — visible only to the assigned teachers/groups (default)',
+    default: LessonVisibility.AUTHENTICATED,
+    description: 'public — visible to everyone, including the public calendar; authenticated — visible to any signed-in user (default); department — only members of the lesson\'s department, the lesson teachers and admin / manage_lessons, 404 for anyone else (requires departmentId)',
   })
   @IsOptional()
   @IsEnum(LessonVisibility)

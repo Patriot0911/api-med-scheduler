@@ -1,12 +1,10 @@
 import { TeacherEntity } from 'src/modules/users/entities/teacher.entity';
 
 export enum LessonManageScopeKind {
-  // admin / manage_lessons: any lesson, any group
+  // admin / manage_lessons: any lesson, any group, any department
   ALL = 'all',
-  // manage_department_lessons: lessons of any teacher from own department
-  DEPARTMENT = 'department',
-  // manage_own_lessons: lessons where the actor is one of the teachers
-  OWN = 'own',
+  // a teacher: lessons they own or were allowed to edit by the owner
+  TEACHER = 'teacher',
 };
 
 export interface ILessonManageScopeModel {

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsNumber, IsOptional, IsString, Max, Min } from "class-validator";
+import { IsNumber, IsOptional, IsString, IsUUID, Max, Min } from "class-validator";
 import { IGetLessonGroupsFiltersModel } from '../../models/lesson-groups/get-lesson-groups-filter.model';
 import { Type } from 'class-transformer';
 
@@ -21,4 +21,9 @@ export class GetLessonGroupsRequestDto implements IGetLessonGroupsFiltersModel {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiPropertyOptional({ type: 'string', description: 'Groups of this department' })
+  @IsOptional()
+  @IsUUID()
+  departmentId?: string;
 }

@@ -10,11 +10,17 @@ export class LessonsMapper {
   }
 
   entityToItem(entity: LessonEntity): ILessonItemModel {
-    const { id, name, date, duration, delayedDate, note, semesterId, lessonGroupId, teacherLessons, studentGroupLessons, visibility, } = entity;
+    const { id, name, date, duration, delayedDate, note, semesterId, lessonGroupId, departmentId, teacherLessons, studentGroupLessons, visibility, } = entity;
+    const teachers = teacherLessons ?? [];
     return {
       id, name, date, duration, delayedDate, note, lessonGroupId, visibility,
       semesterId: semesterId ?? null,
-      teacherIds: (teacherLessons ?? []).map((teacherLesson) => teacherLesson.teacherId),
+      departmentId: departmentId ?? null,
+      ownerTeacherId: teachers.find((teacherLesson) => teacherLesson.isOwner)?.teacherId ?? null,
+      teacherIds: teachers.map((teacherLesson) => teacherLesson.teacherId),
+      editorTeacherIds: teachers
+        .filter((teacherLesson) => teacherLesson.canEdit && !teacherLesson.isOwner)
+        .map((teacherLesson) => teacherLesson.teacherId),
       studentGroupIds: (studentGroupLessons ?? []).map((studentGroupLesson) => studentGroupLesson.studentGroupId),
     };
   }

@@ -6,7 +6,10 @@ export interface ICreateLessonGroupWithLessonsModel {
   date: Date;
   duration: number;
   semesterId: string;
+  departmentId?: string | null;
+  ownerTeacherId?: string;
   teacherIds: string[];
+  editorTeacherIds?: string[];
   studentGroupIds: string[];
   intervalDays?: number;
   repeatCount?: number;

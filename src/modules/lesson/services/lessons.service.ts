@@ -1,8 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository, SelectQueryBuilder } from 'typeorm';
 import { LessonEntity } from '../entities/lesson.entity';
-import { IGetLessonsFiltersModel } from '../models/lessons/get-lessons-filter.model';
 import { IGenericListPayloadResponse } from 'src/shared/models/generic-list-payload.response';
 import { LessonsMapper } from '../mappers/lessons.mapper';
 import { ILessonListItemModel } from '../models/lessons/lesson-list-item.model';
@@ -14,9 +13,10 @@ import { TeacherLessonEntity } from '../entities/teacher-lesson.entity';
 import { StudentGroupLessonEntity } from '../entities/student-group-lesson.entity';
 import { ILessonsFiltersModel } from '../models/lessons/lessons-filters.model';
 import { IPaginationFilters } from 'src/shared/models/pagination-filters.model';
+import { TeacherEntity } from 'src/modules/users/entities/teacher.entity';
 
 /**
- * General lessons logic without any scope restrictions (admin / manage_lessons),
+ * General lessons logic without any access restrictions,
  * plus the shared query helpers used by the scoped services.
  */
 @Injectable()
@@ -28,20 +28,10 @@ export class LessonsService {
     private teacherLessonRepository: Repository<TeacherLessonEntity>,
     @InjectRepository(StudentGroupLessonEntity)
     private studentGroupLessonRepository: Repository<StudentGroupLessonEntity>,
+    @InjectRepository(TeacherEntity)
+    private teachersRepository: Repository<TeacherEntity>,
     private readonly lessonsMapper: LessonsMapper,
   ) {}
-
-  async getAll(params: IGetLessonsFiltersModel): Promise<IGenericListPayloadResponse<ILessonListItemModel>> {
-    const lessonsQb = this.buildLessonsQuery(params);
-    return await this.getPage(lessonsQb, params);
-  }
-
-  /** Public lessons for the public calendar: no auth, no pagination. */
-  async getPublicLessons(filters: ILessonsFiltersModel): Promise<ILessonListItemModel[]> {
-    const lessonsQb = this.buildLessonsQuery(filters)
-      .andWhere('ls.visibility = :publicVisibility', { publicVisibility: LessonVisibility.PUBLIC, });
-    return await this.getList(lessonsQb);
-  }
 
   async getById(id: string): Promise<ILessonItemModel> {
     const lesson = await this.lessonsRepository.findOneOrFail({
@@ -51,22 +41,22 @@ export class LessonsService {
     return this.lessonsMapper.entityToItem(lesson);
   }
 
-  async createLesson({ teacherIds, studentGroupIds, ...data }: ICreateLessonModel): Promise<ILessonItemModel> {
+  /** Callers resolve ownerTeacherId first (see LessonAccessService.resolveOwnerId). */
+  async createLesson({ ownerTeacherId, teacherIds, editorTeacherIds, studentGroupIds, ...data }: ICreateLessonModel): Promise<ILessonItemModel> {
+    if (!ownerTeacherId) {
+      throw new BadRequestException('ownerTeacherId is required');
+    }
+    this.assertVisibilityFitsDepartment(data.visibility, data.departmentId);
+    const lessonTeachers = await this.resolveLessonTeachers(ownerTeacherId, teacherIds, editorTeacherIds);
+
     const lesson = this.lessonsRepository.create({
       ...data,
     },);
     const createdLesson = await this.lessonsRepository.save(lesson);
 
-    if (teacherIds && teacherIds.length > 0) {
-      const lessonTeachers = teacherIds.map((teacherId) =>
-        this.teacherLessonRepository.create({
-          lessonId: createdLesson.id,
-          teacherId: teacherId,
-        }),
-      );
-
-      await this.teacherLessonRepository.save(lessonTeachers);
-    }
+    await this.teacherLessonRepository.insert(
+      lessonTeachers.map((lessonTeacher) => ({ ...lessonTeacher, lessonId: createdLesson.id, })),
+    );
 
     if (studentGroupIds && studentGroupIds.length > 0) {
       const lessonGroups = studentGroupIds.map((groupId) =>
@@ -82,24 +72,34 @@ export class LessonsService {
     return this.getById(createdLesson.id);
   }
 
-  async editLesson(lessonId: string, { teacherIds, studentGroupIds, ...data }: IEditLessonModel): Promise<ILessonItemModel> {
+  async editLesson(
+    lessonId: string,
+    { ownerTeacherId, teacherIds, editorTeacherIds, studentGroupIds, ...data }: IEditLessonModel,
+  ): Promise<ILessonItemModel> {
     const lesson = await this.lessonsRepository.findOneOrFail({
       where: { id: lessonId, },
     });
 
     Object.assign(lesson, { ...data, });
+    this.assertVisibilityFitsDepartment(lesson.visibility, lesson.departmentId);
 
-    if (teacherIds) {
-      await this.teacherLessonRepository.delete({ lessonId });
-
-      if (teacherIds.length > 0) {
-        await this.teacherLessonRepository.insert(
-          teacherIds.map((teacherId) => ({
-            lessonId,
-            teacherId,
-          })),
-        );
+    if (ownerTeacherId !== undefined || teacherIds !== undefined || editorTeacherIds !== undefined) {
+      const currentTeachers = await this.teacherLessonRepository.find({ where: { lessonId, }, });
+      const ownerId = ownerTeacherId ?? currentTeachers.find((teacherLesson) => teacherLesson.isOwner)?.teacherId;
+      if (!ownerId) {
+        throw new BadRequestException('ownerTeacherId is required');
       }
+      const nextTeacherIds = teacherIds ?? currentTeachers.map((teacherLesson) => teacherLesson.teacherId);
+      // editors that are no longer teachers of the lesson lose the flag silently, unless set explicitly
+      const nextEditorIds = editorTeacherIds ?? currentTeachers
+        .filter((teacherLesson) => teacherLesson.canEdit && nextTeacherIds.includes(teacherLesson.teacherId))
+        .map((teacherLesson) => teacherLesson.teacherId);
+      const lessonTeachers = await this.resolveLessonTeachers(ownerId, nextTeacherIds, nextEditorIds);
+
+      await this.teacherLessonRepository.delete({ lessonId });
+      await this.teacherLessonRepository.insert(
+        lessonTeachers.map((lessonTeacher) => ({ ...lessonTeacher, lessonId, })),
+      );
     }
 
     if (studentGroupIds) {
@@ -127,9 +127,49 @@ export class LessonsService {
     await this.lessonsRepository.remove(lessonData);
   }
 
-  buildLessonsQuery({ dateFrom, dateTo, teacherId, studentGroupId, }: ILessonsFiltersModel): SelectQueryBuilder<LessonEntity> {
+  /** Department-only lessons need a department to be visible in. */
+  private assertVisibilityFitsDepartment(visibility: LessonVisibility | undefined, departmentId: string | null | undefined): void {
+    if (visibility === LessonVisibility.DEPARTMENT && !departmentId) {
+      throw new BadRequestException('A department-only lesson must have a department');
+    }
+  }
+
+  /**
+   * Validates the teachers of a lesson and builds its teacher_lesson rows:
+   * the owner plus co-teachers (any department), editors being a subset of the co-teachers.
+   */
+  async resolveLessonTeachers(
+    ownerTeacherId: string,
+    teacherIds: string[] | undefined,
+    editorTeacherIds: string[] | undefined,
+  ): Promise<Pick<TeacherLessonEntity, 'teacherId' | 'isOwner' | 'canEdit'>[]> {
+    const ids = [...new Set([ownerTeacherId, ...(teacherIds ?? [])])];
+    const editorIds = new Set((editorTeacherIds ?? []).filter((teacherId) => teacherId !== ownerTeacherId));
+
+    if ([...editorIds].some((teacherId) => !ids.includes(teacherId))) {
+      throw new BadRequestException('Editors must be among the lesson teachers');
+    }
+    const existingCount = await this.teachersRepository.count({ where: { id: In(ids), }, });
+    if (existingCount !== ids.length) {
+      throw new BadRequestException('Some of the lesson teachers do not exist');
+    }
+
+    return ids.map((teacherId) => ({
+      teacherId,
+      isOwner: teacherId === ownerTeacherId,
+      canEdit: editorIds.has(teacherId),
+    }));
+  }
+
+  buildLessonsQuery({ dateFrom, dateTo, teacherId, studentGroupId, departmentId, visibility, }: ILessonsFiltersModel): SelectQueryBuilder<LessonEntity> {
     const lessonsQb = this.lessonsRepository.createQueryBuilder('ls');
 
+    if (departmentId) {
+      lessonsQb.andWhere('ls.departmentId = :filterDepartmentId', { filterDepartmentId: departmentId, });
+    }
+    if (visibility) {
+      lessonsQb.andWhere('ls.visibility = :filterVisibility', { filterVisibility: visibility, });
+    }
     if (dateFrom) {
       lessonsQb.andWhere('(ls.date >= :dateFrom)', { dateFrom, });
     }
@@ -152,14 +192,18 @@ export class LessonsService {
     return lessonsQb;
   }
 
+  /** A page when page / pageSize are given, otherwise the whole list. Ordered by date either way. */
   async getPage(
     lessonsQb: SelectQueryBuilder<LessonEntity>,
-    { page, pageSize, }: IPaginationFilters,
+    { page, pageSize, }: Partial<IPaginationFilters>,
   ): Promise<IGenericListPayloadResponse<ILessonListItemModel>> {
-    const [lsData, total] = await lessonsQb
-      .skip((page - 1) * pageSize)
-      .take(pageSize)
-      .getManyAndCount();
+    lessonsQb.orderBy('ls.date', 'ASC');
+    if (page && pageSize !== undefined) {
+      lessonsQb
+        .skip((page - 1) * pageSize)
+        .take(pageSize);
+    }
+    const [lsData, total] = await lessonsQb.getManyAndCount();
 
     return {
       items: await this.toListItems(lsData),

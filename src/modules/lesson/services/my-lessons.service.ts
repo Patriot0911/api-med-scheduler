@@ -13,7 +13,7 @@ import { LessonsService } from './lessons.service';
 /**
  * The user's own lessons, regardless of visibility:
  * a teacher sees the lessons they teach, a student — the lessons of their group.
- * A user with both profiles sees both.
+ * A user with both profiles sees both. A single lesson: GET api/lessons/list/:lessonId.
  */
 @Injectable()
 export class MyLessonsService {
@@ -33,17 +33,6 @@ export class MyLessonsService {
       return [];
     }
     return await this.lessonsService.getList(lessonsQb);
-  }
-
-  async getMyLesson(userId: string, lessonId: string): Promise<ILessonItemModel> {
-    const lessonsQb = await this.buildMyLessonsQuery(userId, this.lessonsService.buildLessonsQuery({}));
-    const lesson = await lessonsQb
-      ?.andWhere('ls.id = :lessonId', { lessonId, })
-      .getOne();
-    if (!lesson) {
-      throw new NotFoundException('Lesson not found among your lessons');
-    }
-    return await this.lessonsService.getById(lesson.id);
   }
 
   /** A teacher assigned to the lesson may update its note and delayed date. */
