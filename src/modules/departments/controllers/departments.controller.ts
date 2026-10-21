@@ -10,6 +10,7 @@ import { GetDepartmentsRequestDto } from '../dto/get-departments-request.dto';
 import { CreateDepartmentRequestDto } from '../dto/create-department-request.dto';
 import { EditDepartmentRequestDto } from '../dto/edit-department-request.dto';
 import { SetDepartmentHeadRequestDto } from '../dto/set-department-head-request.dto';
+import { SetDepartmentTeachersRequestDto } from '../dto/set-department-teachers-request.dto';
 import { IDepartmentListItemModel } from '../models/department-list-item.model';
 import { IDepartmentItemModel } from '../models/department-item.model';
 
@@ -58,6 +59,14 @@ export class DepartmentsController {
   @Permissions(Permission.MANAGE_DEPARTMENTS, Permission.ADMIN)
   async setDepartmentHead(@Param('departmentId') departmentId: string, @Body() data: SetDepartmentHeadRequestDto): Promise<IDepartmentItemModel> {
     return await this.departmentsService.setDepartmentHead(departmentId, data);
+  }
+
+  @Put(':departmentId/teachers')
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard, PermissionsGuard)
+  @Permissions(Permission.MANAGE_DEPARTMENTS, Permission.ADMIN)
+  async setDepartmentTeachers(@Param('departmentId') departmentId: string, @Body() data: SetDepartmentTeachersRequestDto): Promise<IDepartmentItemModel> {
+    return await this.departmentsService.setDepartmentTeachers(departmentId, data);
   }
 
   @Delete(':departmentId')

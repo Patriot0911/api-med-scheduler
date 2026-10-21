@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not, Repository } from 'typeorm';
+import { In, Not, Repository } from 'typeorm';
 import { DepartmentEntity } from '../entities/department.entity';
 import { DepartmentsMapper } from '../mappers/departments.mapper';
 import { IGenericListPayloadResponse } from 'src/shared/models/generic-list-payload.response';
@@ -11,6 +11,7 @@ import { IDepartmentItemModel } from '../models/department-item.model';
 import { ICreateDepartmentModel } from '../models/create-department.model';
 import { IEditDepartmentModel } from '../models/edit-department.model';
 import { ISetDepartmentHeadModel } from '../models/set-department-head.model';
+import { ISetDepartmentTeachersModel } from '../models/set-department-teachers.model';
 import { TeacherEntity } from 'src/modules/users/entities/teacher.entity';
 
 @Injectable()
@@ -97,6 +98,56 @@ export class DepartmentsService {
     department.headTeacherId = data.teacherId ?? null;
     const updatedDepartment = await this.departmentsRepository.save(department);
     return this.departmentsMapper.entityToItem(updatedDepartment);
+  }
+
+  async setDepartmentTeachers(departmentId: string, data: ISetDepartmentTeachersModel): Promise<IDepartmentItemModel> {
+    const teacherIds = data.teacherIds;
+
+    return await this.departmentsRepository.manager.transaction(async (manager) => {
+      const departmentsRepository = manager.getRepository(DepartmentEntity);
+      const teachersRepository = manager.getRepository(TeacherEntity);
+
+      const department = await departmentsRepository.findOneOrFail({
+        where: { id: departmentId, },
+      });
+
+      if (teacherIds.length) {
+        const foundCount = await teachersRepository.count({
+          where: { id: In(teacherIds), },
+        });
+        if (foundCount !== teacherIds.length) {
+          throw new BadRequestException('Some teachers were not found');
+        }
+
+        // a head who moves to this department stops being the head of the previous one
+        await departmentsRepository.update(
+          { id: Not(departmentId), headTeacherId: In(teacherIds), },
+          { headTeacherId: null, },
+        );
+      }
+
+      // teachers missing from the list leave the department
+      await teachersRepository.update(
+        teacherIds.length
+          ? { departmentId, id: Not(In(teacherIds)), }
+          : { departmentId, },
+        { departmentId: null, },
+      );
+
+      if (teacherIds.length) {
+        await teachersRepository.update(
+          { id: In(teacherIds), },
+          { departmentId, },
+        );
+      }
+
+      if (department.headTeacherId && !teacherIds.includes(department.headTeacherId)) {
+        department.headTeacherId = null;
+        await departmentsRepository.save(department);
+      }
+
+      return this.departmentsMapper.entityToItem(department);
+    });
   }
 
   async deleteDepartment(departmentId: string): Promise<IDepartmentItemModel> {
