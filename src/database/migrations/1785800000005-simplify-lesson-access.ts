@@ -48,9 +48,6 @@ export class SimplifyLessonAccess1785800000005 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "lessons" ALTER COLUMN "visibility" SET DEFAULT 'authenticated'`);
         await queryRunner.query(`DROP TYPE "public"."lessons_visibility_enum_old"`);
 
-        // Heads keep managing their own lessons.
-        await queryRunner.query(`UPDATE "roles" SET "permissions" = array_append("permissions", 'manage_own_lessons') WHERE 'manage_department_lessons' = ANY("permissions") AND NOT 'manage_own_lessons' = ANY("permissions")`);
-        await queryRunner.query(`UPDATE "roles" SET "permissions" = array_remove("permissions", 'manage_department_lessons')`);
         await queryRunner.query(`ALTER TYPE roles_permissions_enum RENAME TO roles_permissions_enum_old`);
         await queryRunner.query(`
             CREATE TYPE roles_permissions_enum AS ENUM (
@@ -77,7 +74,16 @@ export class SimplifyLessonAccess1785800000005 implements MigrationInterface {
                 'manage_own_lessons'
             );
         `);
-        await queryRunner.query(`ALTER TABLE "roles" ALTER COLUMN "permissions" TYPE roles_permissions_enum[] USING "permissions"::text[]::roles_permissions_enum[]`);
+        // Heads keep managing their own lessons. Done on text[]: the old enum's values may have been added
+        // by ADD VALUE earlier in this same transaction, and Postgres forbids comparing against them until commit.
+        await queryRunner.query(`
+            ALTER TABLE "roles" ALTER COLUMN "permissions" TYPE roles_permissions_enum[] USING (
+                CASE WHEN 'manage_department_lessons' = ANY("permissions"::text[]) AND NOT 'manage_own_lessons' = ANY("permissions"::text[])
+                    THEN array_append(array_remove("permissions"::text[], 'manage_department_lessons'), 'manage_own_lessons')
+                    ELSE array_remove("permissions"::text[], 'manage_department_lessons')
+                END
+            )::roles_permissions_enum[]
+        `);
         await queryRunner.query(`DROP TYPE roles_permissions_enum_old`);
     }
 
