@@ -135,8 +135,8 @@ export class UsersService {
       });
     }
 
-    const generatedPassword = randomBytes(24).toString('base64url');
-    const hashedPassword = await this.passwordService.hash(generatedPassword);
+    const password = data.password ?? randomBytes(24).toString('base64url');
+    const hashedPassword = await this.passwordService.hash(password);
 
     const newUser = this.usersRepository.create({
       email: data.email,
