@@ -1,5 +1,5 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { IsEmail, IsString, MinLength } from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { IsEmail, IsOptional, IsString, MinLength } from "class-validator";
 import { IEditMeModel } from "../models/edit-me.model";
 
 export class EditMeDto implements IEditMeModel {
@@ -11,4 +11,9 @@ export class EditMeDto implements IEditMeModel {
   @IsString()
   @MinLength(1)
   fullName: string;
+
+  @ApiPropertyOptional({ description: 'Required when the email changes' })
+  @IsOptional()
+  @IsString()
+  currentPassword?: string;
 }

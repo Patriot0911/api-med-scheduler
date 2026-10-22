@@ -47,6 +47,11 @@ export class AuthService {
     });
 
     if (data.email !== userData.email) {
+      // the email is the login, so changing it is confirmed like a password change
+      const isValidPassword = !!data.currentPassword
+        && await this.passwordService.verify(userData.password, data.currentPassword);
+      if (!isValidPassword) throw new BadRequestException('Current password is incorrect');
+
       const existingUser = await this.usersRepository.findOne({
         where: { email: data.email, },
       });
