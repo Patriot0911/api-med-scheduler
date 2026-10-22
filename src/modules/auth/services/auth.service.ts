@@ -16,6 +16,8 @@ import { IAccessTokenPayload } from '../models/access-token-payload.model';
 import { IUserPayload } from '../models/user-payload.model';
 import { AuthMapper } from '../mappers/auth.mapper';
 import { IAuthResponse } from '../models/auth-response.model';
+import { IEditMeModel } from '../models/edit-me.model';
+import { IChangePasswordModel } from '../models/change-password.model';
 
 @Injectable()
 export class AuthService {
@@ -37,6 +39,39 @@ export class AuthService {
       relations: ['roles', 'teacher', 'student'],
     });
     return this.authMapper.userEntityToUserPayload(userData);
+  }
+
+  async editMe(userId: string, data: IEditMeModel): Promise<IUserPayload> {
+    const userData = await this.usersRepository.findOneOrFail({
+      where: { id: userId, },
+    });
+
+    if (data.email !== userData.email) {
+      const existingUser = await this.usersRepository.findOne({
+        where: { email: data.email, },
+      });
+      if (existingUser) throw new BadRequestException('Email is already in use');
+    }
+
+    await this.usersRepository.update(
+      { id: userId, },
+      { email: data.email, fullName: data.fullName, },
+    );
+    return this.getMe(userId);
+  }
+
+  async changePassword(userId: string, data: IChangePasswordModel): Promise<boolean> {
+    const userData = await this.usersRepository.findOneOrFail({
+      where: { id: userId, },
+    });
+
+    // an open session alone is not enough to take over the account
+    const isValidPassword = await this.passwordService.verify(userData.password, data.currentPassword);
+    if (!isValidPassword) throw new BadRequestException('Current password is incorrect');
+
+    const hashedPassword = await this.passwordService.hash(data.newPassword);
+    await this.usersRepository.update({ id: userId, }, { password: hashedPassword, });
+    return true;
   }
 
   async login(data: ILoginModel): Promise<IAuthResponse> {

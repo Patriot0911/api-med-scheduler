@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpStatus, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, HttpStatus, Post, Put, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { RegistrationDto } from "../dto/registration.dto";
 import { LoginDto } from "../dto/login.dto";
@@ -15,6 +15,8 @@ import { UserPayloadDto } from "../dto/user-payload.dto";
 import { Feature } from 'src/shared/decorator/features.decorator';
 import { FeatureGuard } from 'src/shared/guards/features.guard';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
+import { EditMeDto } from '../dto/edit-me.dto';
+import { ChangePasswordDto } from '../dto/change-password.dto';
 import { PasswordResetService } from 'src/modules/users/services/password-reset.service';
 
 @ApiTags('Auth')
@@ -63,6 +65,23 @@ export class AuthController {
   async me(@Req() request): Promise<IUserPayload> {
     const { sub, } = <IAccessTokenPayload> request.user;
     return await this.authService.getMe(sub);
+  }
+
+  @Put('me')
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard)
+  @ApiGenericResponses({[HttpStatus.OK]: UserPayloadDto,})
+  async editMe(@Body() data: EditMeDto, @Req() request): Promise<IUserPayload> {
+    const { sub, } = <IAccessTokenPayload> request.user;
+    return await this.authService.editMe(sub, data);
+  }
+
+  @Put('me/password')
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard)
+  async changePassword(@Body() data: ChangePasswordDto, @Req() request): Promise<boolean> {
+    const { sub, } = <IAccessTokenPayload> request.user;
+    return await this.authService.changePassword(sub, data);
   }
 
   @Post('reset-password')
