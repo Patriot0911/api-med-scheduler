@@ -10,6 +10,7 @@ import { UsersService } from '../services/users.service';
 import { PasswordResetService } from '../services/password-reset.service';
 import { GetUsersRequestDto } from '../dto/get-users-request.dto';
 import { CreateUserRequestDto } from '../dto/create-user-request.dto';
+import { EditUserRequestDto } from '../dto/edit-user-request.dto';
 import { CreateStudentProfileRequestDto } from '../dto/create-student-profile-request.dto';
 import { EditStudentProfileRequestDto } from '../dto/edit-student-profile-request.dto';
 import { CreateTeacherProfileRequestDto } from '../dto/create-teacher-profile-request.dto';
@@ -53,6 +54,19 @@ export class UsersController {
     return await this.usersService.createUser(data, sub);
   }
 
+  @Put(':userId')
+  @ApiBearerAuth()
+  @UseGuards(JwtAccessGuard, PermissionsGuard)
+  @Permissions(Permission.MANAGE_USERS, Permission.ADMIN)
+  async editUser(
+    @Param('userId') userId: string,
+    @Body() data: EditUserRequestDto,
+    @Req() request,
+  ): Promise<IUserItemModel> {
+    const { sub, } = <IAccessTokenPayload> request.user;
+    return await this.usersService.editUser(userId, data, sub);
+  }
+
   @Post(':userId/password-reset-token')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
@@ -72,6 +86,7 @@ export class UsersController {
     return await this.usersService.createTeacherProfile(userId, data);
   }
 
+  /** Creates the teacher profile when the user has none, otherwise updates it */
   @Put(':userId/teacher')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
@@ -102,6 +117,7 @@ export class UsersController {
     return await this.usersService.createStudentProfile(userId, data);
   }
 
+  /** Creates the student profile when the user has none, otherwise updates it */
   @Put(':userId/student')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)

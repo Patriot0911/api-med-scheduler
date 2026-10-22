@@ -1,7 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsNumber, IsOptional, IsString, Max, Min } from "class-validator";
+import { IsArray, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Max, Min } from "class-validator";
 import { IGetUsersFiltersModel } from "../models/get-users-filters.model";
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
+import { UserProfileType } from '../models/user-profile-type.enum';
+
+// a single query value (?profiles=student) comes as a string, repeated ones as an array
+const toArray = ({ value }: { value: unknown }): unknown[] => (Array.isArray(value) ? (value as unknown[]) : [value]);
 
 export class GetUsersRequestDto implements IGetUsersFiltersModel {
   @ApiProperty({ required: false, default: 1 })
@@ -21,4 +25,18 @@ export class GetUsersRequestDto implements IGetUsersFiltersModel {
   @IsString()
   @ApiPropertyOptional({ type: 'string', description: 'Search string' })
   search?: string;
+
+  @IsOptional()
+  @Transform(toArray)
+  @IsArray()
+  @IsUUID('all', { each: true, })
+  @ApiPropertyOptional({ type: [String], description: 'Users with any of these roles' })
+  roleIds?: string[];
+
+  @IsOptional()
+  @Transform(toArray)
+  @IsArray()
+  @IsEnum(UserProfileType, { each: true, })
+  @ApiPropertyOptional({ enum: UserProfileType, isArray: true, description: 'Users with any of these profiles' })
+  profiles?: UserProfileType[];
 }

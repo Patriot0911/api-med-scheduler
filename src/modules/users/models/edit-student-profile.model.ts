@@ -1,4 +1,4 @@
 export interface IEditStudentProfileModel {
-  studentGroupId?: string;
+  studentGroupId?: string | null;
   isGroupMonitor?: boolean;
 };
