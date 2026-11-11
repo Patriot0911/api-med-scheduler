@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThan, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { RoleEntity } from '../entities/role.entity';
 import { Permission } from '../../../shared/models/permission.enum';
 import { ICreateRoleModel } from '../models/create-role.model';
@@ -61,10 +61,8 @@ export class RolesService {
   }
 
   async createRole(roleData: ICreateRoleModel, userId: string): Promise<IRoleItemModel> {
-    const userData = await this.usersRepository.findOneOrFail({
-      where: { id: userId, }
-    });
-    await this.checkUserRoleManageAccess(roleData.permissions, userData);
+    const actingUser = await this.getActingUser(userId);
+    await this.checkUserRoleManageAccess(roleData.permissions, actingUser);
     const newRole = this.rolesRepository.create({
       name: roleData.name,
       permissions: roleData.permissions,
@@ -80,28 +78,15 @@ export class RolesService {
       select: ['permissions', 'rolePriority'],
     });
 
-    const userRole = await this.rolesRepository.findOneOrFail({
-      where: {
-        rolePriority: MoreThan(currentRoleData.rolePriority),
-        users: [
-          { id: userId, },
-        ],
-      },
-      order: {
-        rolePriority: 'DESC',
-      },
-    });
+    const actingUser = await this.getActingUser(userId);
 
-    if (roleData.rolePriority && userRole.rolePriority <= roleData.rolePriority) {
-      throw new ForbiddenException('Cannot edit role for higher prioirty');
+    this.assertOutranksRole(actingUser, currentRoleData.rolePriority);
+    if (roleData.rolePriority !== undefined) {
+      this.assertOutranksRole(actingUser, roleData.rolePriority);
     }
 
-    const userData = await this.usersRepository.findOneOrFail({
-      where: { id: userId, }
-    });
-
-    await this.checkUserRoleManageAccess(currentRoleData.permissions, userData);
-    await this.checkUserRoleManageAccess(roleData.permissions, userData);
+    await this.checkUserRoleManageAccess(currentRoleData.permissions, actingUser);
+    await this.checkUserRoleManageAccess(roleData.permissions, actingUser);
 
     const updatedRole = await this.rolesRepository.update(
       { id: roleId, },
@@ -118,19 +103,25 @@ export class RolesService {
     const roleData = await this.rolesRepository.findOneOrFail({
       where: { id: roleId, }
     });
-    await this.rolesRepository.findOneOrFail({
-      where: {
-        rolePriority: MoreThan(roleData.rolePriority),
-        users: [
-          { id: userId, },
-        ],
-      },
-      order: {
-        rolePriority: 'DESC',
-      },
-    });
+    const actingUser = await this.getActingUser(userId);
+    this.assertOutranksRole(actingUser, roleData.rolePriority);
+
     const removedRole = await this.rolesRepository.remove(roleData);
-    return this.rolesMapper.entityToItem(removedRole);
+    return this.rolesMapper.entityToItem({ ...removedRole, id: roleId, });
+  }
+
+  private async getActingUser(userId: string): Promise<UserEntity> {
+    return await this.usersRepository.findOneOrFail({
+      where: { id: userId, },
+      relations: { roles: true, },
+    });
+  }
+
+  private assertOutranksRole(actingUser: UserEntity, rolePriority: number): void {
+    const highestPriority = Math.max(-1, ...(actingUser.roles ?? []).map((role) => role.rolePriority));
+    if (highestPriority <= rolePriority) {
+      throw new ForbiddenException('Cannot manage a role with the same or higher priority than your own');
+    }
   }
 
   async checkUserRoleManageAccess(permissions: Permission[], userData: UserEntity): Promise<boolean> {

@@ -126,7 +126,7 @@ Postgres-enum `roles_permissions_enum` не оновлюється сам. По�
 - Імпорти між модулями — абсолютні від `src/` (`'src/modules/auth/guards/permission.guard'`), всередині модуля — відносні.
 - Методи сервісів `async` і повертають явний тип `Promise<IModel>`. `findOneOrFail` — для «має існувати», `findOne` + власний виняток — коли потрібне конкретне повідомлення.
 - Винятки Nest (`BadRequestException`, `ForbiddenException`, `NotFoundException`) з англійським повідомленням для кінцевого користувача.
-- JSDoc-коментарі пояснюють бізнес-правило, а не код (`/** A head who leaves the department stops being its head */`). Тримай цей стиль.
+- Коментарі — мінімально, лише там, де без них складну логіку або неочевидне бізнес-правило не зрозуміти (`/** A head who leaves the department stops being its head */`). Не коментуй те, що вже зрозуміло з назв функцій і змінних. Наявні в коді рясні коментарі — не зразок для нового коду.
 - `any` дозволено eslint, але в нових сервісах його немає — не додавай.
 
 ## Конфігурація (.env)
