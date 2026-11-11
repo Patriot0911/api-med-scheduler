@@ -14,7 +14,6 @@ import { ILessonReaderModel } from '../models/lesson-reader.model';
 import { LessonVisibility } from '../models/lesson-visibility.enum';
 
 export const LESSON_MANAGE_PERMISSIONS = [
-  Permission.ADMIN,
   Permission.MANAGE_LESSONS,
   Permission.MANAGE_OWN_LESSONS,
 ];

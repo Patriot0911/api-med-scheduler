@@ -7,14 +7,13 @@ import { IRoleDictionaryItemModel } from '../models/role-dictionary-item.model';
 
 @Injectable()
 export class RolesMapper {
-  entityToListItem(role: RoleEntity): IRoleListItemModel {
-    const { id, name, permissions, rolePriority, } = role;
-    return { id, name, permissions, rolePriority, };
+  entityToListItem(role: RoleEntity, canManage: boolean): IRoleListItemModel {
+    return this.entityToItem(role, canManage);
   }
 
-  entityToItem(role: RoleEntity): IRoleItemModel {
+  entityToItem(role: RoleEntity, canManage: boolean): IRoleItemModel {
     const { id, name, permissions, rolePriority, } = role;
-    return { id, name, permissions, rolePriority, };
+    return { id, name, permissions, rolePriority, canManage, };
   }
 
   entityToDictionaryItem(role: RoleEntity): IRoleDictionaryItemModel {

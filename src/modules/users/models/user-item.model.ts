@@ -10,4 +10,6 @@ export interface IUserItemModel {
   lastLoginAt: Date | null;
   teacher: ITeacherProfileModel | null;
   student: IStudentProfileModel | null;
+  /** Whether the requesting user may edit this user, their profiles and roles */
+  canManage: boolean;
 };

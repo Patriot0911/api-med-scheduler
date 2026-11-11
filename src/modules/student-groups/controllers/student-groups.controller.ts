@@ -22,7 +22,7 @@ export class StudentGroupsController {
   @Get()
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.READ_GROUPS, Permission.ADMIN)
+  @Permissions(Permission.READ_GROUPS)
   async getAllStudentGroups(@Query() params: GetStudentGroupsRequestDto): Promise<IGenericListPayloadResponse<IStudentGroupListItemModel>> {
     return await this.studentGroupsService.getAll(params);
   }
@@ -30,7 +30,7 @@ export class StudentGroupsController {
   @Get(':studentGroupId')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.READ_GROUPS, Permission.ADMIN)
+  @Permissions(Permission.READ_GROUPS)
   async getStudentGroup(@Param('studentGroupId') studentGroupId: string): Promise<IStudentGroupItemModel> {
     return await this.studentGroupsService.getById(studentGroupId);
   }
@@ -38,7 +38,7 @@ export class StudentGroupsController {
   @Post()
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.MANAGE_GROUPS, Permission.ADMIN)
+  @Permissions(Permission.MANAGE_GROUPS)
   async createStudentGroup(@Body() data: CreateStudentGroupRequestDto): Promise<IStudentGroupItemModel> {
     return await this.studentGroupsService.createGroup(data);
   }
@@ -46,7 +46,7 @@ export class StudentGroupsController {
   @Put(':studentGroupId')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.MANAGE_GROUPS, Permission.ADMIN)
+  @Permissions(Permission.MANAGE_GROUPS)
   async editRole(
     @Param('studentGroupId') studentGroupId: string,
     @Body() data: EditStudentGroupRequestDto,
@@ -57,7 +57,7 @@ export class StudentGroupsController {
   @Delete(':studentGroupId')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.MANAGE_GROUPS, Permission.ADMIN)
+  @Permissions(Permission.MANAGE_GROUPS)
   async deleteStudentGroup(@Param('studentGroupId') studentGroupId: string): Promise<IStudentGroupItemModel> {
     return await this.studentGroupsService.deleteGroup(studentGroupId);
   }

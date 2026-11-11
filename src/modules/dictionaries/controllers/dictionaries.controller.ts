@@ -37,7 +37,7 @@ export class DictionariesController {
   @Get('permissions')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.READ_ROLES, Permission.ADMIN)
+  @Permissions(Permission.READ_ROLES)
   getPermissionsDictionary(): Permission[] {
     return this.dictionariesService.getPermissions();
   }
@@ -45,7 +45,7 @@ export class DictionariesController {
   @Get('roles')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.READ_ROLES, Permission.ADMIN)
+  @Permissions(Permission.READ_ROLES)
   async getRolesDictionary(): Promise<IRoleDictionaryItemModel[]> {
     return await this.rolesService.getRolesDictionary();
   }
@@ -93,7 +93,6 @@ export class DictionariesController {
     Permission.MANAGE_DEPARTMENTS,
     Permission.READ_USERS,
     Permission.MANAGE_USERS,
-    Permission.ADMIN,
   )
   async getDepartmentsDictionary(): Promise<IDepartmentDictionaryItem[]> {
     return await this.departmentsService.getDepartmentsDictionary();

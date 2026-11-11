@@ -7,6 +7,7 @@ import { UserEntity } from '../entities/user.entity';
 import { PasswordResetTokenEntity } from '../entities/password-reset-token.entity';
 import { PasswordService } from 'src/modules/auth/services/password.service';
 import { IPasswordResetTokenModel } from '../models/password-reset-token.model';
+import { UsersService } from './users.service';
 
 const TOKEN_SEPARATOR = '.';
 
@@ -19,12 +20,11 @@ export class PasswordResetService {
     private passwordResetTokensRepository: Repository<PasswordResetTokenEntity>,
     private readonly passwordService: PasswordService,
     private readonly configService: ConfigService,
+    private readonly usersService: UsersService,
   ) {}
 
-  async createResetToken(userId: string): Promise<IPasswordResetTokenModel> {
-    await this.usersRepository.findOneOrFail({
-      where: { id: userId, },
-    });
+  async createResetToken(userId: string, actorId: string): Promise<IPasswordResetTokenModel> {
+    await this.usersService.assertCanManageUser(actorId, userId);
 
     await this.passwordResetTokensRepository.delete({
       userId,

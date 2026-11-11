@@ -5,4 +5,6 @@ export interface IRoleItemModel {
   name: string;
   rolePriority: number;
   permissions: Permission[];
+  /** Whether the requesting user may edit / delete / grant this role */
+  canManage: boolean;
 };

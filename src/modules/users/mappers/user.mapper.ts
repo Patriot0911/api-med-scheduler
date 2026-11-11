@@ -10,11 +10,11 @@ import { ITeacherDictionaryItem } from '../models/teacher-dictionary-item.model'
 
 @Injectable()
 export class UsersMapper {
-  entityToListItem(user: UserEntity): IUserListItemModel {
-    return this.entityToItem(user);
+  entityToListItem(user: UserEntity, canManage: boolean): IUserListItemModel {
+    return this.entityToItem(user, canManage);
   }
 
-  entityToItem(user: UserEntity): IUserItemModel {
+  entityToItem(user: UserEntity, canManage: boolean): IUserItemModel {
     const { id, email, fullName, roles, createdAt, lastLoginAt, teacher, student, } = user;
     return {
       id, email, fullName, createdAt,
@@ -22,6 +22,7 @@ export class UsersMapper {
       roleIds: (roles ?? []).map((role) => role.id),
       teacher: teacher ? this.teacherProfileToItem(teacher) : null,
       student: student ? this.studentProfileToItem(student) : null,
+      canManage,
     };
   }
 

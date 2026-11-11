@@ -89,12 +89,16 @@ modules/<name>/
 @Get()
 @ApiBearerAuth()
 @UseGuards(JwtAccessGuard, PermissionsGuard)
-@Permissions(Permission.READ_USERS, Permission.ADMIN)
+@Permissions(Permission.READ_USERS, Permission.MANAGE_USERS)
 ```
 
-- `PermissionsGuard` пропускає, якщо в токені є **хоча б один** з перелічених дозволів (OR).
-- **`ADMIN` не є автоматичним байпасом** — його треба явно додавати до `@Permissions(...)` кожного ендпоінту.
-- Дозволи беруться з access-токена (агрегуються з усіх ролей при логіні / refresh). Після зміни ролей користувач отримає нові дозволи лише після refresh.
+Авторизація має два рівні:
+
+1. **Доступ до ендпоінту** — `@Permissions` + `PermissionsGuard`. Пропускає, якщо є **хоча б один** з перелічених дозволів (OR). **`ADMIN` проходить завжди**, тож у списках його не перелічують. `@Permissions(Permission.ADMIN)` пишуть лише для ендпоінтів «тільки для адміна» (семестри).
+2. **Дія над конкретним користувачем або роллю** — ієрархія ролей в `AuthorityService` (`modules/roles/services/authority.service.ts`). Будь-яка зміна чужого акаунта, профілів, ролей чи reset-токена проходить через нього. Формула описана в [docs/domain.md](docs/domain.md#ієрархія-ролей). Свої перевірки «чи може A змінити B» поза цим сервісом не пиши.
+
+- Guard читає дозволи з access-токена (агрегуються з ролей при логіні / refresh), тож після зміни ролей вони оновлюються лише після refresh. `AuthorityService` завжди читає ролі з БД.
+- Відповіді users і roles містять `canManage`: чи може поточний користувач керувати цим записом. Фронт має покладатися на цей прапорець, а не повторювати формулу.
 - `OptionalJwtAccessGuard` — для публічних ендпоінтів (`/lessons/list`): без заголовка `Authorization` пускає анонімно, з простроченим токеном дає 401.
 - Тонші правила (власник заняття, кафедра) перевіряються в сервісах, а не guard-ами — див. `LessonAccessService`.
 - `@Feature('register') + FeatureGuard` вмикає ендпоінт через env (`FEATURE_REGISTER='TRUE'`).
@@ -144,6 +148,5 @@ Postgres-enum `roles_permissions_enum` не оновлюється сам. По�
 ## Відомі пастки
 
 - `findOneOrFail` кидає `EntityNotFoundError`, а не `HttpException` → `AllExceptionsFilter` повертає **500**, а не 404. Якщо клієнту потрібен 404, кидай `NotFoundException` сам.
-- `RolesService.createRole` / `editRole` завантажують користувача, що діє, **без** relation `roles`, тому `checkUserRoleManageAccess` бачить порожні дозволи і відхиляє будь-яку непорожню роль. `UsersService.checkRolesManageAccess` робить це правильно (`relations: { roles: true }`) — орієнтуйся на нього.
 - `SeedAdmin.down()` видаляє `admin@example.com`, а не `INIT_EMAIL`.
 - Сутність `semester` і модуль `lesson` названі в однині, решта — у множині. Шляхи імпорту перевіряй, а не вгадуй.

@@ -7,7 +7,7 @@ import { StudentEntity } from '../entities/student.entity';
 import { RoleEntity } from 'src/modules/roles/entities/role.entity';
 import { StudentGroupEntity } from 'src/modules/student-groups/entities/student-group.entity';
 import { DepartmentEntity } from 'src/modules/departments/entities/department.entity';
-import { RolesService } from 'src/modules/roles/services/roles.service';
+import { AuthorityService } from 'src/modules/roles/services/authority.service';
 import { PasswordService } from 'src/modules/auth/services/password.service';
 import { UsersMapper } from '../mappers/user.mapper';
 import { IGenericListPayloadResponse } from 'src/shared/models/generic-list-payload.response';
@@ -26,6 +26,7 @@ import { IStudentProfileModel } from '../models/student-profile.model';
 import { ITeacherDictionaryItem } from '../models/teacher-dictionary-item.model';
 import { randomBytes } from 'crypto';
 
+/** Changes to another user's account and profiles follow the role hierarchy, see AuthorityService. */
 @Injectable()
 export class UsersService {
   constructor(
@@ -42,7 +43,7 @@ export class UsersService {
     @InjectRepository(DepartmentEntity)
     private departmentsRepository: Repository<DepartmentEntity>,
     private readonly usersMapper: UsersMapper,
-    private readonly rolesService: RolesService,
+    private readonly authorityService: AuthorityService,
     private readonly passwordService: PasswordService,
   ) {}
 
@@ -56,7 +57,7 @@ export class UsersService {
     );
   }
 
-  async getAll(params: IGetUsersFiltersModel): Promise<IGenericListPayloadResponse<IUserListItemModel>> {
+  async getAll(params: IGetUsersFiltersModel, actorId: string): Promise<IGenericListPayloadResponse<IUserListItemModel>> {
     const { page, pageSize, search, roleIds, profiles, } = params;
     const usersQb = this.usersRepository
       .createQueryBuilder('users')
@@ -92,27 +93,35 @@ export class UsersService {
       }));
     }
 
-    const [usersData, total] = await usersQb
-      .distinct(true)
-      .getManyAndCount();
+    const [[usersData, total], actor] = await Promise.all([
+      usersQb.distinct(true).getManyAndCount(),
+      this.authorityService.getAuthority(actorId),
+    ]);
 
     return {
       items: usersData.map(
-        (u) => this.usersMapper.entityToListItem(u)
+        (u) => this.usersMapper.entityToListItem(
+          u,
+          this.authorityService.canManageUser(actor, this.authorityService.fromRoles(u.id, u.roles)),
+        )
       ),
       meta: { count: total, },
     };
   }
 
-  async getById(id: string): Promise<IUserItemModel> {
-    const user = await this.usersRepository.findOneOrFail({
-      where: { id, },
-      relations: { roles: true, teacher: true, student: true, },
-    });
-    return this.usersMapper.entityToItem(user);
+  async getById(id: string, actorId: string): Promise<IUserItemModel> {
+    const [user, actor] = await Promise.all([
+      this.usersRepository.findOneOrFail({
+        where: { id, },
+        relations: { roles: true, teacher: true, student: true, },
+      }),
+      this.authorityService.getAuthority(actorId),
+    ]);
+    const canManage = this.authorityService.canManageUser(actor, this.authorityService.fromRoles(user.id, user.roles));
+    return this.usersMapper.entityToItem(user, canManage);
   }
 
-  async createUser(data: ICreateUserModel, creatingUserId: string): Promise<IUserItemModel> {
+  async createUser(data: ICreateUserModel, actorId: string): Promise<IUserItemModel> {
     const existingUser = await this.usersRepository.findOne({
       where: { email: data.email, },
     });
@@ -121,7 +130,8 @@ export class UsersService {
     }
 
     const roles = await this.findRoles(data.roleIds);
-    await this.checkRolesManageAccess(roles, creatingUserId);
+    const actor = await this.authorityService.getAuthority(actorId);
+    this.authorityService.assertCanManageRoles(actor, roles);
 
     if (data.student?.studentGroupId) {
       await this.studentGroupsRepository.findOneOrFail({
@@ -147,30 +157,23 @@ export class UsersService {
     const createdUser = await this.usersRepository.save(newUser);
 
     if (data.teacher) {
-      const teacherProfile = this.teachersRepository.create({
-        userId: createdUser.id,
-        departmentId: data.teacher.departmentId ?? null,
-      });
-      await this.teachersRepository.save(teacherProfile);
+      await this.insertTeacherProfile(createdUser.id, data.teacher);
     }
 
     if (data.student) {
-      const studentProfile = this.studentsRepository.create({
-        userId: createdUser.id,
-        studentGroupId: data.student.studentGroupId ?? null,
-        isGroupMonitor: data.student.isGroupMonitor ?? false,
-      });
-      await this.studentsRepository.save(studentProfile);
+      await this.insertStudentProfile(createdUser.id, data.student);
     }
 
-    return this.getById(createdUser.id);
+    return this.getById(createdUser.id, actorId);
   }
 
-  async editUser(userId: string, data: IEditUserModel, editingUserId: string): Promise<IUserItemModel> {
+  async editUser(userId: string, data: IEditUserModel, actorId: string): Promise<IUserItemModel> {
     const user = await this.usersRepository.findOneOrFail({
       where: { id: userId, },
       relations: { roles: true, },
     });
+    const actor = await this.authorityService.getAuthority(actorId);
+    this.authorityService.assertCanManageUser(actor, this.authorityService.fromRoles(user.id, user.roles));
 
     if (data.email !== user.email) {
       const existingUser = await this.usersRepository.findOne({
@@ -185,12 +188,12 @@ export class UsersService {
       const roles = await this.findRoles(data.roleIds);
       const currentRoleIds = new Set(user.roles.map((role) => role.id));
       const nextRoleIds = new Set(roles.map((role) => role.id));
-      // both granting and taking away a role need its permissions
+      // both granting and taking away a role are checked
       const changedRoles = [
         ...roles.filter((role) => !currentRoleIds.has(role.id)),
         ...user.roles.filter((role) => !nextRoleIds.has(role.id)),
       ];
-      await this.checkRolesManageAccess(changedRoles, editingUserId);
+      this.authorityService.assertCanManageRoles(actor, changedRoles);
       user.roles = roles;
     }
 
@@ -198,41 +201,23 @@ export class UsersService {
     user.fullName = data.fullName;
     await this.usersRepository.save(user);
 
-    return this.getById(userId);
+    return this.getById(userId, actorId);
   }
 
-  async createTeacherProfile(userId: string, data: ICreateTeacherProfileModel = {}): Promise<ITeacherProfileModel> {
-    await this.usersRepository.findOneOrFail({
-      where: { id: userId, },
-    });
-
-    const existingProfile = await this.teachersRepository.findOne({
-      where: { userId, },
-    });
-    if (existingProfile) {
-      throw new BadRequestException('Teacher profile already exists for this user');
-    }
-
-    if (data.departmentId) {
-      await this.departmentsRepository.findOneOrFail({
-        where: { id: data.departmentId, },
-      });
-    }
-
-    const teacherProfile = this.teachersRepository.create({
-      userId,
-      departmentId: data.departmentId ?? null,
-    });
-    const createdProfile = await this.teachersRepository.save(teacherProfile);
-    return this.usersMapper.teacherProfileToItem(createdProfile);
+  async createTeacherProfile(userId: string, data: ICreateTeacherProfileModel, actorId: string): Promise<ITeacherProfileModel> {
+    await this.assertCanManageUser(actorId, userId);
+    return this.insertTeacherProfile(userId, data);
   }
 
-  async editTeacherProfile(userId: string, data: IEditTeacherProfileModel): Promise<ITeacherProfileModel> {
+  /** Creates the profile when the user has none */
+  async editTeacherProfile(userId: string, data: IEditTeacherProfileModel, actorId: string): Promise<ITeacherProfileModel> {
+    await this.assertCanManageUser(actorId, userId);
+
     const teacherProfile = await this.teachersRepository.findOne({
       where: { userId, },
     });
     if (!teacherProfile) {
-      return this.createTeacherProfile(userId, data);
+      return this.insertTeacherProfile(userId, data);
     }
 
     if (data.departmentId !== undefined) {
@@ -255,7 +240,8 @@ export class UsersService {
     return this.usersMapper.teacherProfileToItem(updatedProfile);
   }
 
-  async deleteTeacherProfile(userId: string): Promise<ITeacherProfileModel> {
+  async deleteTeacherProfile(userId: string, actorId: string): Promise<ITeacherProfileModel> {
+    await this.assertCanManageUser(actorId, userId);
     const teacherProfile = await this.teachersRepository.findOneOrFail({
       where: { userId, },
     });
@@ -263,11 +249,92 @@ export class UsersService {
     return this.usersMapper.teacherProfileToItem(removedProfile);
   }
 
-  async createStudentProfile(userId: string, data: ICreateStudentProfileModel): Promise<IStudentProfileModel> {
-    await this.usersRepository.findOneOrFail({
-      where: { id: userId, },
-    });
+  async createStudentProfile(userId: string, data: ICreateStudentProfileModel, actorId: string): Promise<IStudentProfileModel> {
+    await this.assertCanManageUser(actorId, userId);
+    return this.insertStudentProfile(userId, data);
+  }
 
+  /** Creates the profile when the user has none */
+  async editStudentProfile(userId: string, data: IEditStudentProfileModel, actorId: string): Promise<IStudentProfileModel> {
+    await this.assertCanManageUser(actorId, userId);
+
+    const studentProfile = await this.studentsRepository.findOne({
+      where: { userId, },
+    });
+    if (!studentProfile) {
+      return this.insertStudentProfile(userId, data);
+    }
+
+    if (data.studentGroupId !== undefined) {
+      if (data.studentGroupId) {
+        await this.studentGroupsRepository.findOneOrFail({
+          where: { id: data.studentGroupId, },
+        });
+      }
+      studentProfile.studentGroupId = data.studentGroupId ?? null;
+    }
+    if (data.isGroupMonitor !== undefined) {
+      studentProfile.isGroupMonitor = data.isGroupMonitor;
+    }
+
+    const updatedProfile = await this.studentsRepository.save(studentProfile);
+    return this.usersMapper.studentProfileToItem(updatedProfile);
+  }
+
+  async deleteStudentProfile(userId: string, actorId: string): Promise<IStudentProfileModel> {
+    await this.assertCanManageUser(actorId, userId);
+    const studentProfile = await this.studentsRepository.findOneOrFail({
+      where: { userId, },
+    });
+    const removedProfile = await this.studentsRepository.remove(studentProfile);
+    return this.usersMapper.studentProfileToItem(removedProfile);
+  }
+
+  async getUserById(id: string): Promise<UserEntity | null> {
+    const user = await this.usersRepository.findOne({
+      where: { id },
+      relations: ['roles',],
+    });
+    return user;
+  }
+  async getUserByEmail(email: string): Promise<UserEntity | null> {
+    return await this.usersRepository.findOne({
+      where: { email },
+      relations: ['roles'],
+    });
+  }
+
+  async assertCanManageUser(actorId: string, targetUserId: string): Promise<void> {
+    const [actor, target] = await Promise.all([
+      this.authorityService.getAuthority(actorId),
+      this.authorityService.getAuthority(targetUserId),
+    ]);
+    this.authorityService.assertCanManageUser(actor, target);
+  }
+
+  private async insertTeacherProfile(userId: string, data: ICreateTeacherProfileModel): Promise<ITeacherProfileModel> {
+    const existingProfile = await this.teachersRepository.findOne({
+      where: { userId, },
+    });
+    if (existingProfile) {
+      throw new BadRequestException('Teacher profile already exists for this user');
+    }
+
+    if (data.departmentId) {
+      await this.departmentsRepository.findOneOrFail({
+        where: { id: data.departmentId, },
+      });
+    }
+
+    const teacherProfile = this.teachersRepository.create({
+      userId,
+      departmentId: data.departmentId ?? null,
+    });
+    const createdProfile = await this.teachersRepository.save(teacherProfile);
+    return this.usersMapper.teacherProfileToItem(createdProfile);
+  }
+
+  private async insertStudentProfile(userId: string, data: ICreateStudentProfileModel): Promise<IStudentProfileModel> {
     const existingProfile = await this.studentsRepository.findOne({
       where: { userId, },
     });
@@ -290,52 +357,6 @@ export class UsersService {
     return this.usersMapper.studentProfileToItem(createdProfile);
   }
 
-  async editStudentProfile(userId: string, data: IEditStudentProfileModel): Promise<IStudentProfileModel> {
-    const studentProfile = await this.studentsRepository.findOne({
-      where: { userId, },
-    });
-    if (!studentProfile) {
-      return this.createStudentProfile(userId, data);
-    }
-
-    if (data.studentGroupId !== undefined) {
-      if (data.studentGroupId) {
-        await this.studentGroupsRepository.findOneOrFail({
-          where: { id: data.studentGroupId, },
-        });
-      }
-      studentProfile.studentGroupId = data.studentGroupId ?? null;
-    }
-    if (data.isGroupMonitor !== undefined) {
-      studentProfile.isGroupMonitor = data.isGroupMonitor;
-    }
-
-    const updatedProfile = await this.studentsRepository.save(studentProfile);
-    return this.usersMapper.studentProfileToItem(updatedProfile);
-  }
-
-  async deleteStudentProfile(userId: string): Promise<IStudentProfileModel> {
-    const studentProfile = await this.studentsRepository.findOneOrFail({
-      where: { userId, },
-    });
-    const removedProfile = await this.studentsRepository.remove(studentProfile);
-    return this.usersMapper.studentProfileToItem(removedProfile);
-  }
-
-  async getUserById(id: string): Promise<UserEntity | null> {
-    const user = await this.usersRepository.findOne({
-      where: { id },
-      relations: ['roles',],
-    });
-    return user;
-  }
-  async getUserByEmail(email: string): Promise<UserEntity | null> {
-    return await this.usersRepository.findOne({
-      where: { email },
-      relations: ['roles'],
-    });
-  }
-
   private async findRoles(roleIds: string[] = []): Promise<RoleEntity[]> {
     if (roleIds.length === 0) {
       return [];
@@ -343,18 +364,5 @@ export class UsersService {
     return await this.rolesRepository.find({
       where: { id: In(roleIds), },
     });
-  }
-
-  /** The acting user may only grant / take away roles whose permissions they have themselves */
-  private async checkRolesManageAccess(roles: RoleEntity[], actingUserId: string): Promise<void> {
-    if (roles.length === 0) {
-      return;
-    }
-    const actingUser = await this.usersRepository.findOneOrFail({
-      where: { id: actingUserId, },
-      relations: { roles: true, },
-    });
-    const permissions = [...new Set(roles.flatMap((role) => role.permissions))];
-    await this.rolesService.checkUserRoleManageAccess(permissions, actingUser);
   }
 }

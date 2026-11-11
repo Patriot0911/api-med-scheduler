@@ -24,7 +24,7 @@ export class DepartmentsController {
   @Get()
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.READ_DEPARTMENTS, Permission.MANAGE_DEPARTMENTS, Permission.ADMIN)
+  @Permissions(Permission.READ_DEPARTMENTS, Permission.MANAGE_DEPARTMENTS)
   async getAllDepartments(@Query() params: GetDepartmentsRequestDto): Promise<IGenericListPayloadResponse<IDepartmentListItemModel>> {
     return await this.departmentsService.getAll(params);
   }
@@ -32,7 +32,7 @@ export class DepartmentsController {
   @Get(':departmentId')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.READ_DEPARTMENTS, Permission.MANAGE_DEPARTMENTS, Permission.ADMIN)
+  @Permissions(Permission.READ_DEPARTMENTS, Permission.MANAGE_DEPARTMENTS)
   async getDepartment(@Param('departmentId') departmentId: string): Promise<IDepartmentItemModel> {
     return await this.departmentsService.getById(departmentId);
   }
@@ -40,7 +40,7 @@ export class DepartmentsController {
   @Post()
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.MANAGE_DEPARTMENTS, Permission.ADMIN)
+  @Permissions(Permission.MANAGE_DEPARTMENTS)
   async createDepartment(@Body() data: CreateDepartmentRequestDto): Promise<IDepartmentItemModel> {
     return await this.departmentsService.createDepartment(data);
   }
@@ -48,7 +48,7 @@ export class DepartmentsController {
   @Put(':departmentId')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.MANAGE_DEPARTMENTS, Permission.ADMIN)
+  @Permissions(Permission.MANAGE_DEPARTMENTS)
   async editDepartment(@Param('departmentId') departmentId: string, @Body() data: EditDepartmentRequestDto): Promise<boolean> {
     return await this.departmentsService.editDepartment(data, departmentId);
   }
@@ -56,7 +56,7 @@ export class DepartmentsController {
   @Put(':departmentId/head')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.MANAGE_DEPARTMENTS, Permission.ADMIN)
+  @Permissions(Permission.MANAGE_DEPARTMENTS)
   async setDepartmentHead(@Param('departmentId') departmentId: string, @Body() data: SetDepartmentHeadRequestDto): Promise<IDepartmentItemModel> {
     return await this.departmentsService.setDepartmentHead(departmentId, data);
   }
@@ -64,7 +64,7 @@ export class DepartmentsController {
   @Put(':departmentId/teachers')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.MANAGE_DEPARTMENTS, Permission.ADMIN)
+  @Permissions(Permission.MANAGE_DEPARTMENTS)
   async setDepartmentTeachers(@Param('departmentId') departmentId: string, @Body() data: SetDepartmentTeachersRequestDto): Promise<IDepartmentItemModel> {
     return await this.departmentsService.setDepartmentTeachers(departmentId, data);
   }
@@ -72,7 +72,7 @@ export class DepartmentsController {
   @Delete(':departmentId')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(Permission.MANAGE_DEPARTMENTS, Permission.ADMIN)
+  @Permissions(Permission.MANAGE_DEPARTMENTS)
   async deleteDepartment(@Param('departmentId') departmentId: string): Promise<IDepartmentItemModel> {
     return await this.departmentsService.deleteDepartment(departmentId);
   }
