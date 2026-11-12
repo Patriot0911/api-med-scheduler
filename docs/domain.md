@@ -12,7 +12,7 @@ User ──< user_roles >── Role (permissions: Permission[], rolePriority)
 
 Lesson ──> LessonsGroup (обов'язково)       LessonsGroup ──> createdByTeacher?, department?
    │──> Semester?   │──> Department?
-   ├──< teacher_lesson (teacherId, isOwner, canEdit) >── Teacher
+   ├──< teacher_lesson (teacherId) >── Teacher
    └──< student_group_lesson >── StudentGroup
 
 PasswordResetToken ──> User
@@ -30,7 +30,7 @@ PasswordResetToken ──> User
 | `SemesterEntity` | `semesters` | Навчальний період `dateFrom`–`dateTo` |
 | `LessonsGroupEntity` | `lessons_group` | Курс / серія занять («Анатомія, лекція»). Має творця-викладача і, за бажанням, кафедру |
 | `LessonEntity` | `lessons` | Одне заняття: `date`, `duration` (хв, ≥5), `delayedDate` (перенесено на), `note`, `visibility`, `departmentId?`, `semesterId?` |
-| `TeacherLessonEntity` | `teacher_lesson` | Викладачі заняття. Рівно один `isOwner` (частковий унікальний індекс `UQ_teacher_lesson_owner`), `canEdit` для співвикладачів |
+| `TeacherLessonEntity` | `teacher_lesson` | Викладачі заняття. Усі рівні: кожен може редагувати заняття |
 | `StudentGroupLessonEntity` | `student_group_lesson` | Групи, для яких проводиться заняття |
 | `PasswordResetTokenEntity` | `password_reset_tokens` | Токен скидання пароля у форматі selector/validator |
 
@@ -45,9 +45,8 @@ PasswordResetToken ──> User
 | `read_roles` / `manage_roles` | Довідник ролей і дозволів / CRUD ролей (`GET /roles` вимагає `manage_roles`) |
 | `read_groups` / `manage_groups` | Студентські групи та теги |
 | `read_departments` / `manage_departments` | Кафедри, завідувач, склад кафедри |
-| `manage_lessons` | Те саме, що admin, для занять (scope `ALL`) |
-| `manage_own_lessons` | Створювати заняття на своє ім'я (потрібен ще й профіль викладача) |
-| `read_lessons`, `read_comments`, `manage_comments` | Оголошені, але в коді поки не перевіряються |
+| `read_lessons` / `manage_lessons` | Адмін-панель занять (`/admin/lessons*`): перегляд / усі зміни. У домені викладачів дозволи не діють |
+| `read_comments`, `manage_comments` | Оголошені, але в коді поки не перевіряються |
 
 Семестри (CRUD) доступні лише `admin`.
 
@@ -94,64 +93,68 @@ canManageRole(A, R) = rank(A) > R.rolePriority ∧ (isAdmin(A) ∨ R.permissions
 - `PUT /departments/:id/head` — `teacherId` має належати цій кафедрі; `null` знімає завідувача.
 - Зміна `departmentId` профілю викладача (`PUT /users/:id/teacher`) теж знімає з нього завідування старою кафедрою.
 - Видалення кафедри: у викладачів, занять і груп занять `department_id` стає NULL (`ON DELETE SET NULL`).
-- Завідувач кафедри **не** має особливих прав на заняття кафедри (прибрано в міграції `simplify-lesson-access`).
+- Завідувач кафедри редагує всі заняття, у яких `lessons.department_id` — його кафедра, і керує групами занять своєї кафедри (див. нижче).
 
 ## Заняття — правила доступу
 
-Уся логіка зосереджена в `modules/lesson/services/lesson-access.service.ts`. Не дублюй перевірки в контролерах.
+Заняття живуть у двох доменах, і вони свідомо не перетинаються:
 
-### Видимість (`LessonVisibility`) — хто бачить
+- **Домен викладачів** (`/lessons`, `/lessons-groups`). Права визначаються лише участю в занятті та завідуванням кафедрою, дозволи (`Permission`) тут ролі **не грають**. Правила — `services/lesson-access.service.ts`.
+- **Адмін-панель** (`/admin/lessons`, `/admin/lessons-groups`). Доступ дає `read_lessons` / `manage_lessons` (admin проходить завжди). Будь-які заняття, без обмежень видимості, складу викладачів чи кафедри. Адмін без профілю викладача в домені викладачів не має жодних особливих прав.
+
+### Хто редагує
+
+| Хто | Що може |
+|---|---|
+| Будь-який викладач заняття (`teacher_lesson`) | Усе: поля, кафедру, склад викладачів і груп, групу занять, видалення, генерацію серії від заняття |
+| Завідувач кафедри | Те саме для всіх занять, де `department_id` = його кафедра, навіть якщо він їх не викладає |
+| Адмін | Усе через адмін-панель |
+
+Правила створення в домені викладачів:
+- створювати може лише користувач із профілем викладача;
+- створене заняття має лишитися доступним для редагування автору: він є серед `teacherIds` або завідує вказаною кафедрою;
+- кафедра — жодна або власна кафедра викладача (так само при її зміні);
+- співвикладачі можуть бути з будь-якої кафедри.
+
+Інваріанти: у заняття завжди є хоча б один викладач, і всі вони існують (`LessonsService.assertTeachersExist`). Викладач може прибрати себе із заняття і після цього втрачає доступ.
+
+### Видимість (`LessonVisibility`)
 
 | Значення | Хто бачить |
 |---|---|
-| `public` | Усі, включно з анонімами (публічний календар) |
-| `authenticated` (за замовч.) | Будь-хто, хто увійшов |
-| `department` | Члени кафедри заняття, викладачі заняття, студенти його груп, `admin` / `manage_lessons`. Для решти заняття **не існує** (404, а не 403). Потребує `departmentId` |
+| `all` (за замовч.) | Усі, включно з анонімами публічного розкладу |
+| `involved` | Викладачі заняття, завідувач його кафедри, студенти його груп. Для решти заняття **не існує** (404, а не 403) |
 
-`ILessonReaderModel` (`@LessonReader()`) описує читача: `isAuthenticated`, `seesAll`, `teacherId`, `departmentId`, `studentGroupId`. `applyVisibility()` накладає правило на QueryBuilder (alias `ls`), `assertCanSeeLesson()` — на завантажене заняття.
+`ILessonActorModel` (`@LessonActor()`) описує користувача в домені викладачів: `teacherId`, `departmentId` (кафедра викладача), `headOfDepartmentId`, `studentGroupId`. Для аноніма всі поля `null`. Для прихованого заняття редагування й видалення теж дають 404; для видимого, але чужого — 403.
 
-### Керування (`ILessonManageScopeModel`, `@LessonScope()`)
+Кожне заняття у відповіді має `canEdit` для поточного користувача (у адмін-панелі завжди `true`).
 
-- **`ALL`** — `admin` або `manage_lessons`. Будь-яке заняття, будь-який власник і кафедра, можна передати власність (`ownerTeacherId`).
-- **`TEACHER`** — будь-хто з профілем викладача. Без профілю → 403 «Only teachers can manage lessons».
+### Групи занять
 
-Для `TEACHER`:
-
-| Дія | Хто може |
+| Дія | Хто може (домен викладачів) |
 |---|---|
-| Створити заняття | Лише на своє ім'я (`ownerTeacherId` = я або не передано); кафедра — жодна або своя. Route guard вимагає `manage_own_lessons` |
-| Співвикладачі | Будь-які викладачі з будь-якої кафедри |
-| Редагувати все (поля, кафедра, викладачі, редактори, група занять) | Власник (`isOwner`), але передати власність може лише ALL |
-| Редагувати лише поля заняття | Редактор (`canEdit`, видає власник). Змінювати `ownerTeacherId`, `teacherIds`, `editorTeacherIds`, `departmentId` не можна |
-| Змінити `note` і `delayedDate` (`PATCH /lessons/my/:id`) | Будь-який викладач заняття |
-| Видалити заняття, згенерувати серію від нього | Лише власник |
-| Використати групу занять (покласти в неї заняття, бачити її) | Творець групи або член її кафедри |
-| Редагувати / видалити групу занять | Лише творець групи |
-
-Інваріанти, які перевіряє `LessonsService`:
-- рівно один власник, і він автоматично додається до `teacherIds`;
-- `editorTeacherIds` ⊆ `teacherIds`; власник у редакторах не зберігається;
-- усі викладачі мають існувати;
-- `visibility = department` ⇒ `departmentId` не null.
+| Бачити список | Будь-хто з токеном |
+| Створити | Викладач; кафедра — жодна або власна. Автор записується в `createdByTeacherId` |
+| Покласти в групу заняття, згенерувати серію в ній | Автор групи або член її кафедри (і заняття має бути доступне для редагування) |
+| Перейменувати / видалити | Автор групи або завідувач її кафедри |
 
 ### Шари сервісів
 
 | Сервіс | Роль |
 |---|---|
-| `LessonAccessService` | Правила: scope, reader, видимість, assert-и |
-| `LessonsService` / `LessonsGroupsService` | «Сира» логіка **без перевірок доступу**: CRUD, `buildLessonsQuery`, `getPage` / `getList`, `resolveLessonTeachers`, генерація серій |
-| `ManagedLessonsService` / `ManagedLessonGroupsService` | Спершу перевіряють доступ, потім делегують у сирі сервіси. Контролери викликають **лише їх** |
-| `MyLessonsService` | «Мої заняття»: викладаю я або вчиться моя група, **незалежно від видимості** |
+| `LessonAccessService` | Правила домену викладачів: actor, `canEdit`, `canSee`, `applyVisibility`, групи, assert-и |
+| `LessonsService` / `LessonsGroupsService` | Логіка **без перевірок доступу**: CRUD, `buildLessonsQuery`, `getPage` / `getList`, серії. Адмін-контролери викликають їх напряму |
+| `ManagedLessonsService` / `ManagedLessonGroupsService` | Домен викладачів: спершу правила, потім базові сервіси, і `canEdit` перераховується для actor-а |
+| `MyLessonsService` | Розклад користувача: викладаю я або вчиться моя група |
 
-Нова дія над заняттями: правило → `LessonAccessService`, логіка → `LessonsService`, зв'язка → `Managed*Service`, ендпоінт → контролер з `@LessonScope()` / `@LessonReader()`.
-
-Приховане заняття при редагуванні / видаленні теж дає 404 (`getManagedLessonOrFail` перевіряє видимість через `readerFromScope`).
+Нова дія над заняттями: правило → `LessonAccessService`, логіка → `LessonsService`, зв'язка → `Managed*Service`, ендпоінт → контролер з `@LessonActor()`. Адмін-варіант — в `admin-*.controller.ts` поверх базового сервісу.
 
 ### Серії занять
 
 - `POST /lessons-groups/with-lessons` — створює групу занять і N занять: або `dates[]`, або `date` + `intervalDays` + `repeatCount` (включно з першим, ≤200).
-- `POST /lessons-groups/generate-series` — копіює наявне заняття (`baseLessonId`) на нові дати: `dates[]` або `intervalDays` + `repeatCount` (нові заняття **після** базового). Копіюються викладачі, редактори, групи, кафедра, видимість.
+- `POST /lessons-groups/generate-series` — копіює наявне заняття (`baseLessonId`) на нові дати: `dates[]` або `intervalDays` + `repeatCount` (нові заняття **після** базового). Копіюються викладачі, групи, кафедра, видимість.
 - Заняття створюються в циклі без транзакції: помилка посередині лишає частину серії.
+- Обидва ендпоінти мають адмін-аналоги в `/admin/lessons-groups`.
 
 ## Карта ендпоінтів
 
@@ -171,8 +174,12 @@ canManageRole(A, R) = rank(A) > R.rolePriority ∧ (isAdmin(A) ∨ R.permissions
 
 **semesters** — CRUD (admin)
 
-**lessons** — `GET list`, `GET list/:id` 🔓/🔑 (з урахуванням видимості; фільтри `teacherId`, `studentGroupId`, `departmentId`, `visibility`, `dateFrom`, `dateTo`; пагінація опційна — без `page`/`pageSize` повертається весь список) · `GET my`, `PATCH my/:id` 🔑 · `POST /` (manage_own_lessons | manage_lessons) · `PATCH /:id`, `DELETE /:id` 🔑 (вирішують прапорці власника / редактора)
+**lessons** (домен викладачів) — `GET list`, `GET list/:id` 🔓/🔑 (з урахуванням видимості; фільтри `teacherId`, `studentGroupId`, `departmentId`, `visibility`, `dateFrom`, `dateTo`; пагінація опційна — без `page`/`pageSize` повертається весь список) · `GET my` 🔑 · `POST /`, `PATCH /:id`, `DELETE /:id` 🔑 (вирішують правила `LessonAccessService`)
 
-**lessons-groups** — `GET list`, `GET list/:id` 🔑 · `POST /`, `POST with-lessons`, `POST generate-series`, `PUT /:id`, `DELETE /:id`, `PUT /:groupId/lessons/:lessonId` (manage_own_lessons | manage_lessons)
+**lessons-groups** (домен викладачів) — усе 🔑: `GET list`, `GET list/:id`, `POST /`, `POST with-lessons`, `POST generate-series`, `PUT /:id`, `DELETE /:id`, `PUT /:groupId/lessons/:lessonId`
+
+**admin/lessons** — `GET /`, `GET /:id` (read/manage_lessons) · `POST /`, `PATCH /:id`, `DELETE /:id` (manage_lessons)
+
+**admin/lessons-groups** — `GET /`, `GET /:id` (read/manage_lessons) · `POST /`, `POST with-lessons`, `POST generate-series`, `PUT /:id`, `DELETE /:id`, `PUT /:groupId/lessons/:lessonId` (manage_lessons)
 
 **dictionaries** (`{ id, name }[]`) — `permissions`, `roles` (read_roles) · `group-tags`, `group`, `semesters`, `lesson-groups`, `teachers` (`{ id, name, departmentId }`) 🔑 · `departments` (read/manage_departments | read/manage_users)

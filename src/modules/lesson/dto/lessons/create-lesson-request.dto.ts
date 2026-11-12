@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ICreateLessonModel } from '../../models/lessons/create-lesson.model';
-import { IsArray, IsDate, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { ArrayMinSize, IsArray, IsDate, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { LessonVisibility } from '../../models/lesson-visibility.enum';
 
@@ -38,29 +38,19 @@ export class CreateLessonRequestDto implements ICreateLessonModel {
 
   @ApiPropertyOptional({
     nullable: true,
-    description: 'Department of the lesson, optional. Non-admins may set only their own department.',
+    description: 'Department of the lesson, optional. Its head may edit the lesson. A teacher may set only their own department.',
   })
   @IsOptional()
   @IsUUID()
   departmentId?: string | null;
 
-  @ApiPropertyOptional({
-    description: 'Owner teacher profile id. Defaults to the acting teacher; only admin / manage_lessons may set someone else.',
-  })
-  @IsOptional()
-  @IsUUID()
-  ownerTeacherId?: string;
 
-  @ApiProperty({ description: 'Teacher profile ids (TeacherEntity.id, not user id), from any department. The owner is added automatically.' })
+  @ApiProperty({ description: 'Teacher profile ids (TeacherEntity.id, not user id), from any department. Every one of them may edit the lesson.' })
   @IsArray()
-  @IsString({ each: true })
+  @ArrayMinSize(1)
+  @IsUUID('all', { each: true, })
   teacherIds: string[];
 
-  @ApiPropertyOptional({ description: 'Co-teachers allowed to edit the lesson, a subset of teacherIds. Set by the owner or admin / manage_lessons.' })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  editorTeacherIds?: string[];
 
   @ApiProperty()
   @IsArray()
@@ -79,8 +69,8 @@ export class CreateLessonRequestDto implements ICreateLessonModel {
 
   @ApiPropertyOptional({
     enum: LessonVisibility,
-    default: LessonVisibility.AUTHENTICATED,
-    description: 'public — visible to everyone, including the public calendar; authenticated — visible to any signed-in user (default); department — only members of the lesson\'s department, the lesson teachers and admin / manage_lessons, 404 for anyone else (requires departmentId)',
+    default: LessonVisibility.ALL,
+    description: 'all — anyone, anonymous visitors of the public schedule included (default); involved — only the lesson teachers, the head of the lesson\'s department and students of its groups, 404 for anyone else',
   })
   @IsOptional()
   @IsEnum(LessonVisibility)

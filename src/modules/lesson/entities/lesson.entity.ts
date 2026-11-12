@@ -46,7 +46,7 @@ export class LessonEntity {
   @Column({ name: 'lesson_group_id' })
   lessonGroupId: string;
 
-  // Optional: the owner may have no department.
+  // Its head may edit the lesson
   @ManyToOne(() => DepartmentEntity, { nullable: true, onDelete: 'SET NULL', })
   @JoinColumn({ name: 'department_id' })
   department?: DepartmentEntity | null;
@@ -57,7 +57,7 @@ export class LessonEntity {
   @Column({
     type: 'enum',
     enum: LessonVisibility,
-    default: LessonVisibility.AUTHENTICATED,
+    default: LessonVisibility.ALL,
   })
   visibility: LessonVisibility;
 }

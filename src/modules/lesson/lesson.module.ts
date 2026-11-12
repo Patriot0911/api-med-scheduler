@@ -6,6 +6,8 @@ import { LessonsGroupsService } from './services/lessons-groups.service';
 import { LessonsService } from './services/lessons.service';
 import { LessonsController } from './controllers/lessons.controller';
 import { LessonsGroupsController } from './controllers/lessons-groups.controller';
+import { AdminLessonsController } from './controllers/admin-lessons.controller';
+import { AdminLessonsGroupsController } from './controllers/admin-lessons-groups.controller';
 import { LessonGroupsMapper } from './mappers/lesson-groups.mapper';
 import { LessonsMapper } from './mappers/lessons.mapper';
 import { StudentGroupLessonEntity } from './entities/student-group-lesson.entity';
@@ -33,6 +35,8 @@ import { ManagedLessonGroupsService } from './services/managed-lesson-groups.ser
   controllers: [
     LessonsController,
     LessonsGroupsController,
+    AdminLessonsController,
+    AdminLessonsGroupsController,
   ],
   providers: [
     LessonsGroupsService,

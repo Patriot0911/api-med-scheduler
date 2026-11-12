@@ -27,12 +27,9 @@ interface IRecurrenceModel {
 
 export type TLessonGroupOwnership = Pick<LessonsGroupEntity, 'createdByTeacherId' | 'departmentId'>;
 
-const NO_OWNERSHIP: TLessonGroupOwnership = { createdByTeacherId: null, departmentId: null, };
+export const NO_OWNERSHIP: TLessonGroupOwnership = { createdByTeacherId: null, departmentId: null, };
 
-/**
- * General lesson groups logic without any access restrictions.
- * ManagedLessonGroupsService checks access first and then delegates here.
- */
+/** Lesson groups without any access restrictions, see LessonsService */
 @Injectable()
 export class LessonsGroupsService {
   constructor(
@@ -139,11 +136,7 @@ export class LessonsGroupsService {
         lessonGroupId: baseLesson.lessonGroupId,
         departmentId: baseLesson.departmentId,
         note: baseLesson.note ?? undefined,
-        ownerTeacherId: baseLesson.teacherLessons.find((teacherLesson) => teacherLesson.isOwner)?.teacherId,
         teacherIds: baseLesson.teacherLessons.map((teacherLesson) => teacherLesson.teacherId),
-        editorTeacherIds: baseLesson.teacherLessons
-          .filter((teacherLesson) => teacherLesson.canEdit)
-          .map((teacherLesson) => teacherLesson.teacherId),
         studentGroupIds: baseLesson.studentGroupLessons.map((studentGroupLesson) => studentGroupLesson.studentGroupId),
         visibility: baseLesson.visibility,
       });
@@ -158,11 +151,8 @@ export class LessonsGroupsService {
     ownership: TLessonGroupOwnership = NO_OWNERSHIP,
   ): Promise<ILessonGroupWithLessonsModel> {
     const dates = this.resolveRecurrenceDates(data.date, 0, data);
-    if (!data.ownerTeacherId) {
-      throw new BadRequestException('ownerTeacherId is required');
-    }
     // fail before the group is created
-    await this.lessonsService.resolveLessonTeachers(data.ownerTeacherId, data.teacherIds, data.editorTeacherIds);
+    await this.lessonsService.assertTeachersExist(data.teacherIds);
 
     const newLessonGroup = this.lessonGroupsRepository.create({
       name: data.name,
@@ -181,9 +171,7 @@ export class LessonsGroupsService {
         lessonGroupId: createdLessonGroup.id,
         departmentId: ownership.departmentId,
         note: data.note,
-        ownerTeacherId: data.ownerTeacherId,
         teacherIds: data.teacherIds,
-        editorTeacherIds: data.editorTeacherIds,
         studentGroupIds: data.studentGroupIds,
         visibility: data.visibility,
       });

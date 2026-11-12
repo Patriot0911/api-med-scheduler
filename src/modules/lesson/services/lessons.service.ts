@@ -8,7 +8,6 @@ import { ILessonListItemModel } from '../models/lessons/lesson-list-item.model';
 import { ILessonItemModel } from '../models/lessons/lesson-item.model';
 import { ICreateLessonModel } from '../models/lessons/create-lesson.model';
 import { IEditLessonModel } from '../models/lessons/edit-lesson.model';
-import { LessonVisibility } from '../models/lesson-visibility.enum';
 import { TeacherLessonEntity } from '../entities/teacher-lesson.entity';
 import { StudentGroupLessonEntity } from '../entities/student-group-lesson.entity';
 import { ILessonsFiltersModel } from '../models/lessons/lessons-filters.model';
@@ -16,8 +15,8 @@ import { IPaginationFilters } from 'src/shared/models/pagination-filters.model';
 import { TeacherEntity } from 'src/modules/users/entities/teacher.entity';
 
 /**
- * General lessons logic without any access restrictions,
- * plus the shared query helpers used by the scoped services.
+ * Lessons without any access restrictions: used as is by the admin endpoints and behind the access checks
+ * by the teacher domain. Items come with `canEdit: true`; the teacher domain recomputes it for its actor.
  */
 @Injectable()
 export class LessonsService {
@@ -38,127 +37,78 @@ export class LessonsService {
       where: { id, },
       relations: { teacherLessons: true, studentGroupLessons: true, },
     });
-    return this.lessonsMapper.entityToItem(lesson);
+    return this.lessonsMapper.entityToItem(lesson, true);
   }
 
-  /** Callers resolve ownerTeacherId first (see LessonAccessService.resolveOwnerId). */
-  async createLesson({ ownerTeacherId, teacherIds, editorTeacherIds, studentGroupIds, ...data }: ICreateLessonModel): Promise<ILessonItemModel> {
-    if (!ownerTeacherId) {
-      throw new BadRequestException('ownerTeacherId is required');
-    }
-    this.assertVisibilityFitsDepartment(data.visibility, data.departmentId);
-    const lessonTeachers = await this.resolveLessonTeachers(ownerTeacherId, teacherIds, editorTeacherIds);
+  async findWithRelations(id: string): Promise<LessonEntity | null> {
+    return await this.lessonsRepository.findOne({
+      where: { id, },
+      relations: { teacherLessons: true, studentGroupLessons: true, },
+    });
+  }
 
-    const lesson = this.lessonsRepository.create({
-      ...data,
-    },);
-    const createdLesson = await this.lessonsRepository.save(lesson);
+  async createLesson({ teacherIds, studentGroupIds, ...data }: ICreateLessonModel): Promise<ILessonItemModel> {
+    const lessonTeacherIds = await this.assertTeachersExist(teacherIds);
+
+    const createdLesson = await this.lessonsRepository.save(this.lessonsRepository.create(data));
 
     await this.teacherLessonRepository.insert(
-      lessonTeachers.map((lessonTeacher) => ({ ...lessonTeacher, lessonId: createdLesson.id, })),
+      lessonTeacherIds.map((teacherId) => ({ teacherId, lessonId: createdLesson.id, })),
     );
-
-    if (studentGroupIds && studentGroupIds.length > 0) {
-      const lessonGroups = studentGroupIds.map((groupId) =>
-        this.studentGroupLessonRepository.create({
-          lessonId: createdLesson.id,
-          studentGroupId: groupId,
-        }),
+    if (studentGroupIds.length > 0) {
+      await this.studentGroupLessonRepository.insert(
+        studentGroupIds.map((studentGroupId) => ({ studentGroupId, lessonId: createdLesson.id, })),
       );
-
-      await this.studentGroupLessonRepository.save(lessonGroups);
     }
 
     return this.getById(createdLesson.id);
   }
 
-  async editLesson(
-    lessonId: string,
-    { ownerTeacherId, teacherIds, editorTeacherIds, studentGroupIds, ...data }: IEditLessonModel,
-  ): Promise<ILessonItemModel> {
+  async editLesson(lessonId: string, { teacherIds, studentGroupIds, ...data }: IEditLessonModel): Promise<ILessonItemModel> {
     const lesson = await this.lessonsRepository.findOneOrFail({
       where: { id: lessonId, },
     });
+    Object.assign(lesson, data);
 
-    Object.assign(lesson, { ...data, });
-    this.assertVisibilityFitsDepartment(lesson.visibility, lesson.departmentId);
-
-    if (ownerTeacherId !== undefined || teacherIds !== undefined || editorTeacherIds !== undefined) {
-      const currentTeachers = await this.teacherLessonRepository.find({ where: { lessonId, }, });
-      const ownerId = ownerTeacherId ?? currentTeachers.find((teacherLesson) => teacherLesson.isOwner)?.teacherId;
-      if (!ownerId) {
-        throw new BadRequestException('ownerTeacherId is required');
-      }
-      const nextTeacherIds = teacherIds ?? currentTeachers.map((teacherLesson) => teacherLesson.teacherId);
-      // editors that are no longer teachers of the lesson lose the flag silently, unless set explicitly
-      const nextEditorIds = editorTeacherIds ?? currentTeachers
-        .filter((teacherLesson) => teacherLesson.canEdit && nextTeacherIds.includes(teacherLesson.teacherId))
-        .map((teacherLesson) => teacherLesson.teacherId);
-      const lessonTeachers = await this.resolveLessonTeachers(ownerId, nextTeacherIds, nextEditorIds);
-
-      await this.teacherLessonRepository.delete({ lessonId });
+    if (teacherIds) {
+      const lessonTeacherIds = await this.assertTeachersExist(teacherIds);
+      await this.teacherLessonRepository.delete({ lessonId, });
       await this.teacherLessonRepository.insert(
-        lessonTeachers.map((lessonTeacher) => ({ ...lessonTeacher, lessonId, })),
+        lessonTeacherIds.map((teacherId) => ({ teacherId, lessonId, })),
       );
     }
 
     if (studentGroupIds) {
-      await this.studentGroupLessonRepository.delete({ lessonId });
-
+      await this.studentGroupLessonRepository.delete({ lessonId, });
       if (studentGroupIds.length > 0) {
         await this.studentGroupLessonRepository.insert(
-          studentGroupIds.map((studentGroupId) => ({
-            lessonId,
-            studentGroupId,
-          })),
+          studentGroupIds.map((studentGroupId) => ({ studentGroupId, lessonId, })),
         );
       }
     }
 
     await this.lessonsRepository.save(lesson);
-
     return this.getById(lessonId);
   }
 
   async deleteLesson(lessonId: string): Promise<void> {
-    const lessonData = await this.lessonsRepository.findOneOrFail({
-      where: { id: lessonId, }
+    const lesson = await this.lessonsRepository.findOneOrFail({
+      where: { id: lessonId, },
     });
-    await this.lessonsRepository.remove(lessonData);
+    await this.lessonsRepository.remove(lesson);
   }
 
-  /** Department-only lessons need a department to be visible in. */
-  private assertVisibilityFitsDepartment(visibility: LessonVisibility | undefined, departmentId: string | null | undefined): void {
-    if (visibility === LessonVisibility.DEPARTMENT && !departmentId) {
-      throw new BadRequestException('A department-only lesson must have a department');
-    }
-  }
-
-  /**
-   * Validates the teachers of a lesson and builds its teacher_lesson rows:
-   * the owner plus co-teachers (any department), editors being a subset of the co-teachers.
-   */
-  async resolveLessonTeachers(
-    ownerTeacherId: string,
-    teacherIds: string[] | undefined,
-    editorTeacherIds: string[] | undefined,
-  ): Promise<Pick<TeacherLessonEntity, 'teacherId' | 'isOwner' | 'canEdit'>[]> {
-    const ids = [...new Set([ownerTeacherId, ...(teacherIds ?? [])])];
-    const editorIds = new Set((editorTeacherIds ?? []).filter((teacherId) => teacherId !== ownerTeacherId));
-
-    if ([...editorIds].some((teacherId) => !ids.includes(teacherId))) {
-      throw new BadRequestException('Editors must be among the lesson teachers');
+  /** A lesson keeps at least one teacher, and all of them must exist. Returns the ids without duplicates. */
+  async assertTeachersExist(teacherIds: string[]): Promise<string[]> {
+    const ids = [...new Set(teacherIds)];
+    if (ids.length === 0) {
+      throw new BadRequestException('A lesson needs at least one teacher');
     }
     const existingCount = await this.teachersRepository.count({ where: { id: In(ids), }, });
     if (existingCount !== ids.length) {
       throw new BadRequestException('Some of the lesson teachers do not exist');
     }
-
-    return ids.map((teacherId) => ({
-      teacherId,
-      isOwner: teacherId === ownerTeacherId,
-      canEdit: editorIds.has(teacherId),
-    }));
+    return ids;
   }
 
   buildLessonsQuery({ dateFrom, dateTo, teacherId, studentGroupId, departmentId, visibility, }: ILessonsFiltersModel): SelectQueryBuilder<LessonEntity> {
@@ -211,7 +161,7 @@ export class LessonsService {
     };
   }
 
-  /** Unpaginated list ordered by date, for calendars. */
+  /** Unpaginated list ordered by date, for calendars */
   async getList(lessonsQb: SelectQueryBuilder<LessonEntity>): Promise<ILessonListItemModel[]> {
     const lessonsData = await lessonsQb
       .orderBy('ls.date', 'ASC')
@@ -219,7 +169,7 @@ export class LessonsService {
     return await this.toListItems(lessonsData);
   }
 
-  /** The list query only filters through relations; load them fully for the mapper. */
+  /** The list query only filters through relations; load them fully for the mapper */
   private async toListItems(lessons: LessonEntity[]): Promise<ILessonListItemModel[]> {
     const lessonsWithRelations = lessons.length
       ? await this.lessonsRepository.find({
@@ -230,7 +180,7 @@ export class LessonsService {
     const lessonsById = new Map(lessonsWithRelations.map((lesson) => [lesson.id, lesson]));
 
     return lessons.map(
-      (lesson) => this.lessonsMapper.entityToListItem(lessonsById.get(lesson.id) ?? lesson)
+      (lesson) => this.lessonsMapper.entityToListItem(lessonsById.get(lesson.id) ?? lesson, true)
     );
   }
 }

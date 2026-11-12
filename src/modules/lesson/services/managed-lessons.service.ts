@@ -6,91 +6,85 @@ import { LessonsGroupEntity } from '../entities/lessons-group.entity';
 import { ILessonItemModel } from '../models/lessons/lesson-item.model';
 import { ICreateLessonModel } from '../models/lessons/create-lesson.model';
 import { IEditLessonModel } from '../models/lessons/edit-lesson.model';
-import { ILessonManageScopeModel } from '../models/lesson-manage-scope.model';
-import { ILessonReaderModel } from '../models/lesson-reader.model';
+import { ILessonActorModel } from '../models/lesson-actor.model';
 import { IGetLessonsFiltersModel } from '../models/lessons/get-lessons-filter.model';
 import { ILessonListItemModel } from '../models/lessons/lesson-list-item.model';
 import { IGenericListPayloadResponse } from 'src/shared/models/generic-list-payload.response';
 import { LessonsService } from './lessons.service';
 import { LessonAccessService } from './lesson-access.service';
 
-/**
- * Lessons as the current user may see and manage them (see LessonAccessService):
- * reading within the reader's visibility, creating / editing / deleting within the lesson scope.
- */
+/** Lessons in the teacher domain: LessonsService behind the rules of LessonAccessService */
 @Injectable()
 export class ManagedLessonsService {
   constructor(
-    @InjectRepository(LessonEntity)
-    private lessonsRepository: Repository<LessonEntity>,
     @InjectRepository(LessonsGroupEntity)
     private lessonGroupsRepository: Repository<LessonsGroupEntity>,
     private readonly lessonsService: LessonsService,
     private readonly lessonAccessService: LessonAccessService,
   ) {}
 
-  async getLessons(filters: IGetLessonsFiltersModel, reader: ILessonReaderModel): Promise<IGenericListPayloadResponse<ILessonListItemModel>> {
-    const lessonsQb = this.lessonAccessService.applyVisibility(this.lessonsService.buildLessonsQuery(filters), reader);
-    return await this.lessonsService.getPage(lessonsQb, filters);
+  async getLessons(filters: IGetLessonsFiltersModel, actor: ILessonActorModel): Promise<IGenericListPayloadResponse<ILessonListItemModel>> {
+    const lessonsQb = this.lessonAccessService.applyVisibility(this.lessonsService.buildLessonsQuery(filters), actor);
+    const page = await this.lessonsService.getPage(lessonsQb, filters);
+    return { ...page, items: page.items.map((item) => this.withCanEdit(actor, item)), };
   }
 
-  async createLesson(data: ICreateLessonModel, scope: ILessonManageScopeModel): Promise<ILessonItemModel> {
-    const ownerTeacherId = this.lessonAccessService.resolveOwnerId(scope, data.ownerTeacherId);
-    await this.lessonAccessService.assertCanSetDepartment(scope, data.departmentId);
+  async getLesson(lessonId: string, actor: ILessonActorModel): Promise<ILessonItemModel> {
+    await this.getVisibleLessonOrFail(lessonId, actor);
+    return this.withCanEdit(actor, await this.lessonsService.getById(lessonId));
+  }
+
+  /** The actor has to be able to edit the lesson they create: they teach it or head its department */
+  async createLesson(data: ICreateLessonModel, actor: ILessonActorModel): Promise<ILessonItemModel> {
+    this.lessonAccessService.assertIsTeacher(actor);
+    await this.lessonAccessService.assertCanSetDepartment(actor, data.departmentId);
+    this.lessonAccessService.assertCanEdit(actor, { departmentId: data.departmentId ?? null, teacherIds: data.teacherIds, });
     if (data.lessonGroupId) {
-      await this.assertCanUseGroup(scope, data.lessonGroupId);
+      await this.assertCanUseGroup(actor, data.lessonGroupId);
     }
-    return await this.lessonsService.createLesson({ ...data, ownerTeacherId, });
+    return await this.lessonsService.createLesson(data);
   }
 
-  async editLesson(lesson: LessonEntity, data: IEditLessonModel, scope: ILessonManageScopeModel): Promise<ILessonItemModel> {
-    this.lessonAccessService.assertCanEditLesson(scope, lesson, data);
+  async editLesson(lessonId: string, data: IEditLessonModel, actor: ILessonActorModel): Promise<ILessonItemModel> {
+    const lesson = await this.getEditableLessonOrFail(lessonId, actor);
     if (data.departmentId !== undefined && data.departmentId !== lesson.departmentId) {
-      await this.lessonAccessService.assertCanSetDepartment(scope, data.departmentId);
+      await this.lessonAccessService.assertCanSetDepartment(actor, data.departmentId);
     }
     if (data.lessonGroupId && data.lessonGroupId !== lesson.lessonGroupId) {
-      await this.assertCanUseGroup(scope, data.lessonGroupId);
+      await this.assertCanUseGroup(actor, data.lessonGroupId);
     }
-    return await this.lessonsService.editLesson(lesson.id, data);
+    return this.withCanEdit(actor, await this.lessonsService.editLesson(lessonId, data));
   }
 
-  /** A lesson hidden from the reader (department-only) is reported as missing. */
-  async getVisibleLessonOrFail(lessonId: string, reader: ILessonReaderModel): Promise<LessonEntity> {
-    const lesson = await this.findLesson(lessonId);
-    if (!lesson) {
-      throw new NotFoundException('Lesson not found');
-    }
-    this.lessonAccessService.assertCanSeeLesson(reader, lesson);
+  async deleteLesson(lessonId: string, actor: ILessonActorModel): Promise<void> {
+    await this.getEditableLessonOrFail(lessonId, actor);
+    await this.lessonsService.deleteLesson(lessonId);
+  }
+
+  /** 404 when the actor may not see the lesson, 403 when they see it but may not edit it */
+  async getEditableLessonOrFail(lessonId: string, actor: ILessonActorModel): Promise<LessonEntity> {
+    const lesson = await this.getVisibleLessonOrFail(lessonId, actor);
+    this.lessonAccessService.assertCanEdit(actor, this.lessonAccessService.toAccessTarget(lesson));
     return lesson;
   }
 
-  /** A lesson to edit / delete: hidden ones are missing, not forbidden. */
-  async getManagedLessonOrFail(lessonId: string, scope: ILessonManageScopeModel): Promise<LessonEntity> {
-    return await this.getVisibleLessonOrFail(lessonId, this.lessonAccessService.readerFromScope(scope));
+  withCanEdit<T extends ILessonItemModel>(actor: ILessonActorModel, item: T): T {
+    return { ...item, canEdit: this.lessonAccessService.canEdit(actor, item), };
   }
 
-  async getVisibleLesson(lessonId: string, reader: ILessonReaderModel): Promise<ILessonItemModel> {
-    const lesson = await this.getVisibleLessonOrFail(lessonId, reader);
-    return await this.lessonsService.getById(lesson.id);
+  private async getVisibleLessonOrFail(lessonId: string, actor: ILessonActorModel): Promise<LessonEntity> {
+    const lesson = await this.lessonsService.findWithRelations(lessonId);
+    if (!lesson) {
+      throw new NotFoundException('Lesson not found');
+    }
+    this.lessonAccessService.assertCanSee(actor, this.lessonAccessService.toAccessTarget(lesson));
+    return lesson;
   }
 
-  async deleteLesson(lesson: LessonEntity, scope: ILessonManageScopeModel): Promise<void> {
-    this.lessonAccessService.assertIsLessonOwner(scope, lesson);
-    await this.lessonsRepository.remove(lesson);
-  }
-
-  /** With its teachers and student groups, for the access checks. */
-  async findLesson(lessonId: string): Promise<LessonEntity | null> {
-    return await this.lessonsRepository.findOne({
-      where: { id: lessonId, },
-      relations: { teacherLessons: true, studentGroupLessons: true, },
-    });
-  }
-
-  private async assertCanUseGroup(scope: ILessonManageScopeModel, lessonGroupId: string): Promise<void> {
+  private async assertCanUseGroup(actor: ILessonActorModel, lessonGroupId: string): Promise<void> {
     const lessonGroup = await this.lessonGroupsRepository.findOneOrFail({
       where: { id: lessonGroupId, },
     });
-    this.lessonAccessService.assertCanUseGroup(scope, lessonGroup);
+    this.lessonAccessService.assertCanUseGroup(actor, lessonGroup);
   }
 }

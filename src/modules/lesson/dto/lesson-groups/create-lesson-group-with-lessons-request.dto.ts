@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ArrayMaxSize, IsArray, IsDate, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Max, Min, MinLength } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsDate, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Max, Min, MinLength } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ICreateLessonGroupWithLessonsModel } from '../../models/lesson-groups/create-lesson-group-with-lessons.model';
 import { LessonVisibility } from '../../models/lesson-visibility.enum';
@@ -34,29 +34,19 @@ export class CreateLessonGroupWithLessonsRequestDto implements ICreateLessonGrou
 
   @ApiPropertyOptional({
     nullable: true,
-    description: 'Department of the group and its lessons, optional. Non-admins may set only their own department.',
+    description: 'Department of the group and its lessons, optional. Its head may edit the lesson. A teacher may set only their own department.',
   })
   @IsOptional()
   @IsUUID()
   departmentId?: string | null;
 
-  @ApiPropertyOptional({
-    description: 'Owner teacher profile id. Defaults to the acting teacher; only admin / manage_lessons may set someone else.',
-  })
-  @IsOptional()
-  @IsUUID()
-  ownerTeacherId?: string;
 
-  @ApiProperty({ description: 'Teacher profile ids (TeacherEntity.id, not user id), from any department. The owner is added automatically.' })
+  @ApiProperty({ description: 'Teacher profile ids (TeacherEntity.id, not user id), from any department. Every one of them may edit the lesson.' })
   @IsArray()
-  @IsString({ each: true })
+  @ArrayMinSize(1)
+  @IsUUID('all', { each: true, })
   teacherIds: string[];
 
-  @ApiPropertyOptional({ description: 'Co-teachers allowed to edit the lessons, a subset of teacherIds' })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  editorTeacherIds?: string[];
 
   @ApiProperty()
   @IsArray()
@@ -90,8 +80,8 @@ export class CreateLessonGroupWithLessonsRequestDto implements ICreateLessonGrou
 
   @ApiPropertyOptional({
     enum: LessonVisibility,
-    default: LessonVisibility.AUTHENTICATED,
-    description: 'public — visible to everyone, including the public calendar; authenticated — visible to any signed-in user (default); department — only members of the lesson\'s department, the lesson teachers and admin / manage_lessons, 404 for anyone else (requires a department)',
+    default: LessonVisibility.ALL,
+    description: 'all — anyone, anonymous visitors of the public schedule included (default); involved — only the lesson teachers, the head of the lesson\'s department and students of its groups, 404 for anyone else',
   })
   @IsOptional()
   @IsEnum(LessonVisibility)

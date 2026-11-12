@@ -1,9 +1,6 @@
 export enum LessonVisibility {
-  // anyone, including the public calendar
-  PUBLIC = 'public',
-  // any signed-in user
-  AUTHENTICATED = 'authenticated',
-  // the lesson's department acts as a tenant: its members, the lesson teachers and admin / manage_lessons;
-  // for anyone else the lesson does not exist (404)
-  DEPARTMENT = 'department',
+  // anyone, anonymous visitors of the public schedule included
+  ALL = 'all',
+  // the lesson teachers, the head of the lesson's department and students of its groups; 404 for anyone else
+  INVOLVED = 'involved',
 }

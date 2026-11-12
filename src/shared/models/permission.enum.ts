@@ -12,7 +12,6 @@ export enum Permission {
 
   READ_LESSONS = 'read_lessons',
   MANAGE_LESSONS = 'manage_lessons',
-  MANAGE_OWN_LESSONS = 'manage_own_lessons',
 
   READ_COMMENTS = 'read_comments',
   MANAGE_COMMENTS = 'manage_comments',

@@ -10,11 +10,9 @@ export interface ILessonItemModel {
   semesterId: string | null;
   lessonGroupId: string;
   departmentId: string | null;
-  ownerTeacherId: string | null;
-  // all teachers of the lesson, including the owner
   teacherIds: string[];
-  // co-teachers allowed to edit the lesson
-  editorTeacherIds: string[];
   studentGroupIds: string[];
   visibility: LessonVisibility;
+  /** Whether the requesting user may edit / delete the lesson */
+  canEdit: boolean;
 };
