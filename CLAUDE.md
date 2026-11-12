@@ -128,7 +128,7 @@ Postgres-enum `roles_permissions_enum` не оновлюється сам. По�
 - Prettier: `singleQuote`, `trailingComma: all`. Старі файли мають подвійні лапки — у нових файлах використовуй одинарні, масово не переформатовуй.
 - Характерна звичка: кома після останнього елемента навіть в однорядкових об'єктах: `{ where: { id, }, }`.
 - Імпорти між модулями — абсолютні від `src/` (`'src/modules/auth/guards/permission.guard'`), всередині модуля — відносні.
-- Методи сервісів `async` і повертають явний тип `Promise<IModel>`. `findOneOrFail` — для «має існувати», `findOne` + власний виняток — коли потрібне конкретне повідомлення.
+- Методи сервісів `async` і повертають явний тип `Promise<IModel>`. `findOneOrFail` — для «має існувати»: `AllExceptionsFilter` перетворює `EntityNotFoundError` на 404 `Not found`. `findOne` + власний виняток — коли потрібне конкретне повідомлення.
 - Винятки Nest (`BadRequestException`, `ForbiddenException`, `NotFoundException`) з англійським повідомленням для кінцевого користувача.
 - Коментарі — мінімально, лише там, де без них складну логіку або неочевидне бізнес-правило не зрозуміти (`/** A head who leaves the department stops being its head */`). Не коментуй те, що вже зрозуміло з назв функцій і змінних. Наявні в коді рясні коментарі — не зразок для нового коду.
 - `any` дозволено eslint, але в нових сервісах його немає — не додавай.
@@ -138,15 +138,14 @@ Postgres-enum `roles_permissions_enum` не оновлюється сам. По�
 | Змінна | Призначення |
 |---|---|
 | `APP_ENV`, `APP_PORT` | `production` вимикає Swagger і `synchronize` |
-| `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | БД (і для `docker-compose.yml`, і для застосунку). `POSTGRES_*` з `.env.example` не використовуються |
-| `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` | секрети токенів (у `.env.example` помилково `JWT_SECRET`) |
-| `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL` | TTL **у секундах** (`Number(...)`); `'15m'` дає `NaN` і тихий fallback 900 / 604800 |
-| `PASSWORD_RESET_TTL` | TTL токена скидання пароля, секунди (86400) |
+| `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | БД (і для `docker-compose.yml`, і для застосунку) |
+| `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` | секрети токенів; при `APP_ENV=production` обов'язкові (застосунок не стартує без них), у dev — дефолтні рядки |
+| `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `PASSWORD_RESET_TTL` | тривалість: секунди або число з `s` / `m` / `h` / `d` (`15m`, `7d`), див. `config/duration.ts`. Некоректне значення зупиняє старт. Дефолти: 900 / 604800 / 86400 |
 | `FEATURE_REGISTER` | `'TRUE'` вмикає `POST /api/auth/register` |
 | `INIT_EMAIL`, `INIT_PASSWORD` | креди адміна для `seed:run` |
 
 ## Відомі пастки
 
-- `findOneOrFail` кидає `EntityNotFoundError`, а не `HttpException` → `AllExceptionsFilter` повертає **500**, а не 404. Якщо клієнту потрібен 404, кидай `NotFoundException` сам.
+- Невалідний UUID у шляху (`/semesters/abc`) дає **500** з текстом помилки Postgres: параметри не проходять `ParseUUIDPipe`.
 - `SeedAdmin.down()` видаляє `admin@example.com`, а не `INIT_EMAIL`.
 - Сутність `semester` і модуль `lesson` названі в однині, решта — у множині. Шляхи імпорту перевіряй, а не вгадуй.
