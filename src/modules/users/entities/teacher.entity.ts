@@ -22,6 +22,9 @@ export class TeacherEntity {
   @Column({ name: 'department_id', type: 'uuid', nullable: true, })
   departmentId: string | null;
 
+  @OneToOne(() => DepartmentEntity, (department) => department.headTeacher)
+  headedDepartment?: DepartmentEntity | null;
+
   @OneToMany(() => TeacherLessonEntity, (teacherLesson) => teacherLesson.teacher)
   teacherLessons: TeacherLessonEntity[];
 }

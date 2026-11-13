@@ -36,7 +36,7 @@ export class AuthService {
   async getMe(userId: string): Promise<IUserPayload> {
     const userData = await this.usersRepository.findOneOrFail({
       where: { id: userId, },
-      relations: ['roles', 'teacher', 'student'],
+      relations: ['roles', 'teacher', 'teacher.headedDepartment', 'student'],
     });
     return this.authMapper.userEntityToUserPayload(userData);
   }
@@ -82,7 +82,7 @@ export class AuthService {
   async login(data: ILoginModel): Promise<IAuthResponse> {
     const userData = await this.usersRepository.findOne({
       where: { email: data.email, },
-      relations: ['teacher', 'student'],
+      relations: ['teacher', 'teacher.headedDepartment', 'student'],
     });
     if (!userData) throw new BadRequestException('Invalid credentials');
     const isValidPassword = await this.passwordService.verify(userData.password, data.password);
@@ -133,7 +133,7 @@ export class AuthService {
   async refreshToken(userId: string, refreshToken: string) {
     const userData = await this.usersRepository.findOne({
       where: { id: userId, },
-      relations: ['teacher', 'student'],
+      relations: ['teacher', 'teacher.headedDepartment', 'student'],
     });
     if (!userData || !userData.refreshToken) throw new UnauthorizedException();
 

@@ -13,7 +13,7 @@ export class DepartmentEntity {
   teachers: TeacherEntity[];
 
   // The only head of the department. Must be a teacher of this department.
-  @OneToOne(() => TeacherEntity, { nullable: true, onDelete: 'SET NULL', })
+  @OneToOne(() => TeacherEntity, (teacher) => teacher.headedDepartment, { nullable: true, onDelete: 'SET NULL', })
   @JoinColumn({ name: 'head_teacher_id' })
   headTeacher?: TeacherEntity | null;
 

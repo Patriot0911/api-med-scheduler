@@ -9,6 +9,7 @@ import { LessonEntity } from '../entities/lesson.entity';
 import { LessonsGroupEntity } from '../entities/lessons-group.entity';
 import { ILessonActorModel } from '../models/lesson-actor.model';
 import { LessonVisibility } from '../models/lesson-visibility.enum';
+import { LessonScope } from '../models/lesson-scope.enum';
 
 /** What the access rules need to know about a lesson, from an entity or an item model alike */
 export interface ILessonAccessTarget {
@@ -86,22 +87,55 @@ export class LessonAccessService {
   applyVisibility(lessonsQb: SelectQueryBuilder<LessonEntity>, actor: ILessonActorModel): SelectQueryBuilder<LessonEntity> {
     return lessonsQb.andWhere(new Brackets((visibilityQb) => {
       visibilityQb.where('ls.visibility = :allVisibility', { allVisibility: LessonVisibility.ALL, });
-      if (actor.teacherId) {
-        visibilityQb.orWhere(
-          'EXISTS (SELECT 1 FROM teacher_lesson vtl WHERE vtl.lesson_id = ls.id AND vtl.teacher_id = :actorTeacherId)',
-          { actorTeacherId: actor.teacherId, },
-        );
-      }
-      if (actor.headOfDepartmentId) {
-        visibilityQb.orWhere('ls.departmentId = :actorHeadOfDepartmentId', { actorHeadOfDepartmentId: actor.headOfDepartmentId, });
-      }
-      if (actor.studentGroupId) {
-        visibilityQb.orWhere(
-          'EXISTS (SELECT 1 FROM student_group_lesson vsgl WHERE vsgl.lesson_id = ls.id AND vsgl.student_group_id = :actorStudentGroupId)',
-          { actorStudentGroupId: actor.studentGroupId, },
-        );
+      for (const scope of [LessonScope.TEACHING, LessonScope.DEPARTMENT, LessonScope.STUDYING]) {
+        const condition = this.scopeCondition(scope, actor);
+        if (condition) {
+          visibilityQb.orWhere(condition.sql, condition.params);
+        }
       }
     }));
+  }
+
+  /**
+   * Lessons related to the actor in the given way, or in any of them. Each scope means the actor is involved
+   * in the lesson, so visibility never hides such lessons. Nothing matches when the actor has no such relation.
+   */
+  applyScope(lessonsQb: SelectQueryBuilder<LessonEntity>, actor: ILessonActorModel, scopes: LessonScope[]): SelectQueryBuilder<LessonEntity> {
+    const conditions = scopes
+      .map((scope) => this.scopeCondition(scope, actor))
+      .filter((condition) => condition !== null);
+    if (conditions.length === 0) {
+      return lessonsQb.andWhere('1 = 0');
+    }
+    return lessonsQb.andWhere(new Brackets((scopeQb) => {
+      conditions.forEach(({ sql, params, }) => scopeQb.orWhere(sql, params));
+    }));
+  }
+
+  private scopeCondition(scope: LessonScope, actor: ILessonActorModel): { sql: string; params: Record<string, string> } | null {
+    switch (scope) {
+      case LessonScope.TEACHING:
+        return actor.teacherId
+          ? {
+            sql: 'EXISTS (SELECT 1 FROM teacher_lesson atl WHERE atl.lesson_id = ls.id AND atl.teacher_id = :actorTeacherId)',
+            params: { actorTeacherId: actor.teacherId, },
+          }
+          : null;
+      case LessonScope.DEPARTMENT:
+        return actor.headOfDepartmentId
+          ? {
+            sql: 'ls.departmentId = :actorHeadOfDepartmentId',
+            params: { actorHeadOfDepartmentId: actor.headOfDepartmentId, },
+          }
+          : null;
+      case LessonScope.STUDYING:
+        return actor.studentGroupId
+          ? {
+            sql: 'EXISTS (SELECT 1 FROM student_group_lesson asgl WHERE asgl.lesson_id = ls.id AND asgl.student_group_id = :actorStudentGroupId)',
+            params: { actorStudentGroupId: actor.studentGroupId, },
+          }
+          : null;
+    }
   }
 
   /** Hidden lessons are reported as missing, not forbidden */

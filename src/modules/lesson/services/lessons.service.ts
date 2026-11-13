@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository, SelectQueryBuilder } from 'typeorm';
+import { Brackets, In, Repository, SelectQueryBuilder } from 'typeorm';
 import { LessonEntity } from '../entities/lesson.entity';
 import { IGenericListPayloadResponse } from 'src/shared/models/generic-list-payload.response';
 import { LessonsMapper } from '../mappers/lessons.mapper';
@@ -111,32 +111,70 @@ export class LessonsService {
     return ids;
   }
 
-  buildLessonsQuery({ dateFrom, dateTo, teacherId, studentGroupId, departmentId, visibility, }: ILessonsFiltersModel): SelectQueryBuilder<LessonEntity> {
+  buildLessonsQuery({
+    dateFrom, dateTo, search, teacherIds, studentGroupIds, groupTagIds, departmentIds, lessonGroupIds, semesterIds, visibility,
+  }: ILessonsFiltersModel): SelectQueryBuilder<LessonEntity> {
     const lessonsQb = this.lessonsRepository.createQueryBuilder('ls');
 
-    if (departmentId) {
-      lessonsQb.andWhere('ls.departmentId = :filterDepartmentId', { filterDepartmentId: departmentId, });
+    if (dateFrom) {
+      lessonsQb.andWhere('ls.date >= :dateFrom', { dateFrom, });
+    }
+    if (dateTo) {
+      lessonsQb.andWhere('ls.date <= :dateTo', { dateTo, });
     }
     if (visibility) {
       lessonsQb.andWhere('ls.visibility = :filterVisibility', { filterVisibility: visibility, });
     }
-    if (dateFrom) {
-      lessonsQb.andWhere('(ls.date >= :dateFrom)', { dateFrom, });
+    if (departmentIds?.length) {
+      lessonsQb.andWhere('ls.departmentId IN (:...filterDepartmentIds)', { filterDepartmentIds: departmentIds, });
     }
-    if (dateTo) {
-      lessonsQb.andWhere('(ls.date <= :dateTo)', { dateTo, });
+    if (lessonGroupIds?.length) {
+      lessonsQb.andWhere('ls.lessonGroupId IN (:...filterLessonGroupIds)', { filterLessonGroupIds: lessonGroupIds, });
     }
-    if (teacherId) {
+    if (semesterIds?.length) {
+      lessonsQb.andWhere('ls.semesterId IN (:...filterSemesterIds)', { filterSemesterIds: semesterIds, });
+    }
+    if (teacherIds?.length) {
       lessonsQb.andWhere(
-        'EXISTS (SELECT 1 FROM teacher_lesson ftl WHERE ftl.lesson_id = ls.id AND ftl.teacher_id = :filterTeacherId)',
-        { filterTeacherId: teacherId, },
+        'EXISTS (SELECT 1 FROM teacher_lesson ftl WHERE ftl.lesson_id = ls.id AND ftl.teacher_id IN (:...filterTeacherIds))',
+        { filterTeacherIds: teacherIds, },
       );
     }
-    if (studentGroupId) {
+    if (studentGroupIds?.length) {
       lessonsQb.andWhere(
-        'EXISTS (SELECT 1 FROM student_group_lesson fsgl WHERE fsgl.lesson_id = ls.id AND fsgl.student_group_id = :filterStudentGroupId)',
-        { filterStudentGroupId: studentGroupId, },
+        'EXISTS (SELECT 1 FROM student_group_lesson fsgl WHERE fsgl.lesson_id = ls.id AND fsgl.student_group_id IN (:...filterStudentGroupIds))',
+        { filterStudentGroupIds: studentGroupIds, },
       );
+    }
+    if (groupTagIds?.length) {
+      lessonsQb.andWhere(
+        `EXISTS (
+          SELECT 1 FROM student_group_lesson tsgl
+          JOIN student_group_tags tsgt ON tsgt.student_group_id = tsgl.student_group_id
+          WHERE tsgl.lesson_id = ls.id AND tsgt.group_tag_id IN (:...filterGroupTagIds)
+        )`,
+        { filterGroupTagIds: groupTagIds, },
+      );
+    }
+    const searchText = search?.trim();
+    if (searchText) {
+      lessonsQb.andWhere(new Brackets((searchQb) => {
+        searchQb
+          .where('ls.name ILIKE :search')
+          .orWhere('ls.note ILIKE :search')
+          .orWhere('EXISTS (SELECT 1 FROM lessons_group slg WHERE slg.id = ls.lessonGroupId AND slg.name ILIKE :search)')
+          .orWhere(`EXISTS (
+            SELECT 1 FROM teacher_lesson stl
+            JOIN teachers st ON st.id = stl.teacher_id
+            JOIN users su ON su.id = st.user_id
+            WHERE stl.lesson_id = ls.id AND su."fullName" ILIKE :search
+          )`)
+          .orWhere(`EXISTS (
+            SELECT 1 FROM student_group_lesson ssgl
+            JOIN student_groups ssg ON ssg.id = ssgl.student_group_id
+            WHERE ssgl.lesson_id = ls.id AND ssg.name ILIKE :search
+          )`);
+      }), { search: `%${searchText}%`, });
     }
 
     return lessonsQb;

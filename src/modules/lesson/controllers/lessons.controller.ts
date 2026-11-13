@@ -4,7 +4,7 @@ import { JwtAccessGuard } from 'src/modules/auth/guards/access-refresh.guard';
 import { OptionalJwtAccessGuard } from 'src/modules/auth/guards/optional-jwt-access.guard';
 import { IGenericListPayloadResponse } from 'src/shared/models/generic-list-payload.response';
 import { GetLessonsRequestDto } from '../dto/lessons/get-lessons-request.dto';
-import { LessonsFiltersRequestDto } from '../dto/lessons/lessons-filters-request.dto';
+import { GetMyLessonsRequestDto } from '../dto/lessons/get-my-lessons-request.dto';
 import { CreateLessonRequestDto } from '../dto/lessons/create-lesson-request.dto';
 import { EditLessonRequestDto } from '../dto/lessons/edit-lesson-request.dto';
 import { ILessonListItemModel } from '../models/lessons/lesson-list-item.model';
@@ -47,9 +47,9 @@ export class LessonsController {
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard)
   async getMyLessons(
-    @Query() query: LessonsFiltersRequestDto,
+    @Query() query: GetMyLessonsRequestDto,
     @LessonActor() actor: ILessonActorModel,
-  ): Promise<ILessonListItemModel[]> {
+  ): Promise<IGenericListPayloadResponse<ILessonListItemModel>> {
     return await this.myLessonsService.getMyLessons(actor, query);
   }
 

@@ -1,7 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
-import type { IUserPayload } from "../models/user-payload.model";
+import type { IUserPayload, IUserPayloadTeacherModel } from "../models/user-payload.model";
 import { Permission } from "src/shared/models/permission.enum";
-import { ITeacherProfileModel } from "src/modules/users/models/teacher-profile.model";
 import { IStudentProfileModel } from "src/modules/users/models/student-profile.model";
 
 export class UserPayloadDto implements IUserPayload {
@@ -22,10 +21,10 @@ export class UserPayloadDto implements IUserPayload {
 
   @ApiProperty({
     nullable: true,
-    example: { id: 'uuid' },
-    description: 'Present if this user has a teacher profile',
+    example: { id: 'uuid', departmentId: 'uuid', headOfDepartmentId: null, },
+    description: 'Present if this user has a teacher profile. headOfDepartmentId: the department they head',
   })
-  teacher: ITeacherProfileModel | null;
+  teacher: IUserPayloadTeacherModel | null;
 
   @ApiProperty({
     nullable: true,

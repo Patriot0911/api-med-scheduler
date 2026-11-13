@@ -22,7 +22,9 @@ export class AuthMapper {
       id,
       permissions,
       roles: accessRoles,
-      teacher: teacher ? this.usersMapper.teacherProfileToItem(teacher) : null,
+      teacher: teacher
+        ? { ...this.usersMapper.teacherProfileToItem(teacher), headOfDepartmentId: teacher.headedDepartment?.id ?? null, }
+        : null,
       student: student ? this.usersMapper.studentProfileToItem(student) : null,
     };
   }

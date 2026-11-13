@@ -5,6 +5,10 @@ REST API розкладу занять медичного університет
 
 Доменна модель, правила доступу до занять і карта ендпоінтів — у [docs/domain.md](docs/domain.md). Читай її перед будь-якою зміною в `modules/lesson`, `modules/users` чи дозволах.
 
+## Git
+
+- **Не комітити й не пушити без прямого прохання.** Зміни лишаються в робочому дереві, доки користувач сам не попросить коміт. Дозвіл на один коміт не поширюється на наступні.
+
 ## Стек
 
 NestJS 11 · TypeORM 0.3 · PostgreSQL 16 · Passport JWT (access + refresh) · argon2 · class-validator / class-transformer · Swagger · dayjs.

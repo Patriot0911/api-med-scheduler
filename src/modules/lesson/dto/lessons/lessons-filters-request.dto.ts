@@ -1,32 +1,11 @@
-import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsDateString, IsEnum, IsOptional, IsUUID } from "class-validator";
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
+import { IsArray, IsDateString, IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
+import { toArray } from 'src/shared/transforms/to-array.transform';
 import { ILessonsFiltersModel } from '../../models/lessons/lessons-filters.model';
 import { LessonVisibility } from '../../models/lesson-visibility.enum';
 
 export class LessonsFiltersRequestDto implements ILessonsFiltersModel {
-  @IsOptional()
-  @IsUUID()
-  @ApiPropertyOptional({ type: 'string', description: 'Teacher id (from /dictionaries/teachers)' })
-  teacherId?: string;
-
-  @IsOptional()
-  @IsUUID()
-  @ApiPropertyOptional({ type: 'string', description: 'Student group id (from /dictionaries/group)' })
-  studentGroupId?: string;
-
-  @IsOptional()
-  @IsUUID()
-  @ApiPropertyOptional({ type: 'string', description: 'Lessons of this department' })
-  departmentId?: string;
-
-  @IsOptional()
-  @IsEnum(LessonVisibility)
-  @ApiPropertyOptional({
-    enum: LessonVisibility,
-    description: 'Only lessons with this visibility, among the ones the user may see (anonymous users see public lessons only)',
-  })
-  visibility?: LessonVisibility;
-
   @ApiPropertyOptional()
   @IsDateString()
   @IsOptional()
@@ -36,4 +15,59 @@ export class LessonsFiltersRequestDto implements ILessonsFiltersModel {
   @IsDateString()
   @IsOptional()
   dateTo?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiPropertyOptional({ type: 'string', description: 'Lesson name or note, course name, teacher name, student group name' })
+  search?: string;
+
+  @IsOptional()
+  @Transform(toArray)
+  @IsArray()
+  @IsUUID('all', { each: true, })
+  @ApiPropertyOptional({ type: [String], description: 'Lessons taught by any of these teachers (ids from /dictionaries/teachers)' })
+  teacherIds?: string[];
+
+  @IsOptional()
+  @Transform(toArray)
+  @IsArray()
+  @IsUUID('all', { each: true, })
+  @ApiPropertyOptional({ type: [String], description: 'Lessons of any of these student groups (ids from /dictionaries/group)' })
+  studentGroupIds?: string[];
+
+  @IsOptional()
+  @Transform(toArray)
+  @IsArray()
+  @IsUUID('all', { each: true, })
+  @ApiPropertyOptional({ type: [String], description: 'Lessons of student groups having any of these tags' })
+  groupTagIds?: string[];
+
+  @IsOptional()
+  @Transform(toArray)
+  @IsArray()
+  @IsUUID('all', { each: true, })
+  @ApiPropertyOptional({ type: [String], description: 'Lessons of any of these departments' })
+  departmentIds?: string[];
+
+  @IsOptional()
+  @Transform(toArray)
+  @IsArray()
+  @IsUUID('all', { each: true, })
+  @ApiPropertyOptional({ type: [String], description: 'Lessons of any of these courses (ids from /dictionaries/lesson-groups)' })
+  lessonGroupIds?: string[];
+
+  @IsOptional()
+  @Transform(toArray)
+  @IsArray()
+  @IsUUID('all', { each: true, })
+  @ApiPropertyOptional({ type: [String], description: 'Lessons of any of these semesters' })
+  semesterIds?: string[];
+
+  @IsOptional()
+  @IsEnum(LessonVisibility)
+  @ApiPropertyOptional({
+    enum: LessonVisibility,
+    description: 'Only lessons with this visibility, among the ones the user may see (anonymous users see public lessons only)',
+  })
+  visibility?: LessonVisibility;
 }
