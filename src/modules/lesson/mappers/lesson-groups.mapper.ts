@@ -4,6 +4,10 @@ import { ILessonGroupListItemModel } from '../models/lesson-groups/lesson-group-
 import { ILessonGroupItemModel } from '../models/lesson-groups/lesson-group-item.model';
 import { ILessonGroupDictionaryItem } from '../models/lesson-groups/lesson-group-dictionary-item.model';
 
+export type ILessonGroupStats = Pick<ILessonGroupListItemModel, 'lessonsCount' | 'firstLessonDate' | 'lastLessonDate'>;
+
+const EMPTY_STATS: ILessonGroupStats = { lessonsCount: 0, firstLessonDate: null, lastLessonDate: null, };
+
 @Injectable()
 export class LessonGroupsMapper {
   entityToDictionaryItem(entity: LessonsGroupEntity): ILessonGroupDictionaryItem {
@@ -11,8 +15,13 @@ export class LessonGroupsMapper {
     return { id, name, };
   }
 
-  entityToListItem(entity: LessonsGroupEntity): ILessonGroupListItemModel {
-    return this.entityToItem(entity);
+  entityToListItem(entity: LessonsGroupEntity, stats: ILessonGroupStats = EMPTY_STATS): ILessonGroupListItemModel {
+    return {
+      ...this.entityToItem(entity),
+      departmentName: entity.department?.name ?? null,
+      createdByTeacherName: entity.createdByTeacher?.user?.fullName ?? null,
+      ...stats,
+    };
   }
 
   entityToItem(entity: LessonsGroupEntity): ILessonGroupItemModel {

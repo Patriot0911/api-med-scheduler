@@ -178,6 +178,8 @@ canManageRole(A, R) = rank(A) > R.rolePriority ∧ (isAdmin(A) ∨ R.permissions
 
 Нова дія над заняттями: правило → `LessonAccessService`, логіка → `LessonsService`, зв'язка → `Managed*Service`, ендпоінт → контролер з `@LessonActor()`. Адмін-варіант — в `admin-*.controller.ts` поверх базового сервісу.
 
+Список груп занять (`GET /lessons-groups/list`, `GET /admin/lessons-groups`) відсортований за назвою; кожен рядок має `departmentName`, `createdByTeacherName`, `lessonsCount` і період `firstLessonDate`–`lastLessonDate` за фактичними датами занять.
+
 ### Серії занять
 
 - `POST /lessons-groups/with-lessons` — створює групу занять і N занять: або `dates[]`, або `date` + `intervalDays` + `repeatCount` (включно з першим, ≤200).

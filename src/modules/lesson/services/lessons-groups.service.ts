@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { LessonsGroupEntity } from '../entities/lessons-group.entity';
 import { Repository } from 'typeorm';
 import { IGetLessonGroupsFiltersModel } from '../models/lesson-groups/get-lesson-groups-filter.model';
-import { LessonGroupsMapper } from '../mappers/lesson-groups.mapper';
+import { ILessonGroupStats, LessonGroupsMapper } from '../mappers/lesson-groups.mapper';
 import { IGenericListPayloadResponse } from 'src/shared/models/generic-list-payload.response';
 import { ILessonGroupListItemModel } from '../models/lesson-groups/lesson-group-list-item.model';
 import { ILessonGroupItemModel } from '../models/lesson-groups/lesson-group-item.model';
@@ -54,6 +54,11 @@ export class LessonsGroupsService {
     const { page, pageSize, search, departmentId, } = params;
     const lessonGroupsQb = this.lessonGroupsRepository
       .createQueryBuilder('lsgroups')
+      .leftJoinAndSelect('lsgroups.department', 'department')
+      .leftJoinAndSelect('lsgroups.createdByTeacher', 'creator')
+      .leftJoinAndSelect('creator.user', 'creatorUser')
+      .orderBy('lsgroups.name', 'ASC')
+      .addOrderBy('lsgroups.id', 'ASC')
       .skip((page - 1) * pageSize)
       .take(pageSize);
 
@@ -65,13 +70,30 @@ export class LessonsGroupsService {
     }
 
     const [lsGroupsData, total] = await lessonGroupsQb.getManyAndCount();
+    const statsById = await this.getStats(lsGroupsData.map((group) => group.id));
 
     return {
       items: lsGroupsData.map(
-        (s) => this.lessonGroupsMapper.entityToListItem(s)
+        (group) => this.lessonGroupsMapper.entityToListItem(group, statsById.get(group.id))
       ),
       meta: { count: total, },
     };
+  }
+
+  private async getStats(lessonGroupIds: string[]): Promise<Map<string, ILessonGroupStats>> {
+    if (lessonGroupIds.length === 0) {
+      return new Map();
+    }
+    const rows = await this.lessonsRepository
+      .createQueryBuilder('ls')
+      .select('ls.lessonGroupId', 'lessonGroupId')
+      .addSelect('COUNT(*)::int', 'lessonsCount')
+      .addSelect('MIN(COALESCE(ls.delayedDate, ls.date))', 'firstLessonDate')
+      .addSelect('MAX(COALESCE(ls.delayedDate, ls.date))', 'lastLessonDate')
+      .where('ls.lessonGroupId IN (:...lessonGroupIds)', { lessonGroupIds, })
+      .groupBy('ls.lessonGroupId')
+      .getRawMany<{ lessonGroupId: string } & ILessonGroupStats>();
+    return new Map(rows.map(({ lessonGroupId, ...stats }) => [lessonGroupId, stats]));
   }
 
   async getById(lessonGroupId: string): Promise<ILessonGroupItemModel> {
