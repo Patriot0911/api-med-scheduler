@@ -209,4 +209,4 @@ canManageRole(A, R) = rank(A) > R.rolePriority ∧ (isAdmin(A) ∨ R.permissions
 
 **admin/lessons-groups** — `GET /`, `GET /:id` (read/manage_lessons) · `POST /`, `POST with-lessons`, `POST generate-series`, `PUT /:id`, `DELETE /:id`, `PUT /:groupId/lessons/:lessonId` (manage_lessons)
 
-**dictionaries** (`{ id, name }[]`) — `permissions`, `roles` (read_roles) · `group-tags`, `group`, `semesters`, `lesson-groups`, `teachers` (`{ id, name, departmentId }`) 🔑 · `departments` (read/manage_departments | read/manage_users)
+**dictionaries** (`{ id, name }[]`) — `permissions`, `roles` (read_roles) · `group-tags`, `group`, `semesters`, `lesson-groups`, `teachers` (`{ id, name, departmentId }`), `departments` 🔑 (фільтри занять для всіх)

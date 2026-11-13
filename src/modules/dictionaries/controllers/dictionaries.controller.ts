@@ -87,13 +87,7 @@ export class DictionariesController {
 
   @Get('departments')
   @ApiBearerAuth()
-  @UseGuards(JwtAccessGuard, PermissionsGuard)
-  @Permissions(
-    Permission.READ_DEPARTMENTS,
-    Permission.MANAGE_DEPARTMENTS,
-    Permission.READ_USERS,
-    Permission.MANAGE_USERS,
-  )
+  @UseGuards(JwtAccessGuard)
   async getDepartmentsDictionary(): Promise<IDepartmentDictionaryItem[]> {
     return await this.departmentsService.getDepartmentsDictionary();
   }
