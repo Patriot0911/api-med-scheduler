@@ -130,6 +130,8 @@ canManageRole(A, R) = rank(A) > R.rolePriority ∧ (isAdmin(A) ∨ R.permissions
 
 Кожне заняття у відповіді має `canEdit` для поточного користувача (у адмін-панелі завжди `true`).
 
+Крім id (`teacherIds`, `studentGroupIds`, `lessonGroupId`, `departmentId`) заняття у відповіді несе назви для показу: `teachers` / `studentGroups` (`{ id, name }[]`), `lessonGroupName`, `departmentName`. Тож клієнтам, зокрема анонімному `/schedule`, довідники не потрібні.
+
 ### Мої заняття (`LessonScope`)
 
 `GET /lessons/my?scope=` — заняття, пов'язані з користувачем. Предикати живуть у `LessonAccessService.applyScope` і збігаються з частинами `canEdit` / `canSee`, тож видимість такі заняття ніколи не ховає.
@@ -149,7 +151,7 @@ canManageRole(A, R) = rank(A) > R.rolePriority ∧ (isAdmin(A) ∨ R.permissions
 
 | Фільтр | Суть |
 |---|---|
-| `dateFrom`, `dateTo` | межі `lessons.date` |
+| `dateFrom`, `dateTo` | межі **фактичної** дати `COALESCE(delayedDate, date)`: перенесене заняття потрапляє в діапазон нової дати. За нею ж сортуються всі списки |
 | `search` | `ILIKE` за назвою й нотаткою заняття, назвою групи занять (курсу), ПІБ викладачів, назвами студентських груп |
 | `teacherIds[]`, `studentGroupIds[]`, `departmentIds[]`, `lessonGroupIds[]`, `semesterIds[]` | за відповідними зв'язками |
 | `groupTagIds[]` | заняття, де хоча б одна студентська група має один із тегів |

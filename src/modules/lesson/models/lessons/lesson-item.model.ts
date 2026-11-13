@@ -1,4 +1,5 @@
 import { LessonVisibility } from '../lesson-visibility.enum';
+import { ILessonRefModel } from './lesson-ref.model';
 
 export interface ILessonItemModel {
   id: string;
@@ -12,6 +13,11 @@ export interface ILessonItemModel {
   departmentId: string | null;
   teacherIds: string[];
   studentGroupIds: string[];
+  // names for display, so clients (anonymous ones included) need no dictionaries
+  lessonGroupName: string;
+  departmentName: string | null;
+  teachers: ILessonRefModel[];
+  studentGroups: ILessonRefModel[];
   visibility: LessonVisibility;
   /** Whether the requesting user may edit / delete the lesson */
   canEdit: boolean;

@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, In, Repository, SelectQueryBuilder } from 'typeorm';
+import { Brackets, FindOptionsRelations, In, Repository, SelectQueryBuilder } from 'typeorm';
 import { LessonEntity } from '../entities/lesson.entity';
 import { IGenericListPayloadResponse } from 'src/shared/models/generic-list-payload.response';
 import { LessonsMapper } from '../mappers/lessons.mapper';
@@ -13,6 +13,17 @@ import { StudentGroupLessonEntity } from '../entities/student-group-lesson.entit
 import { ILessonsFiltersModel } from '../models/lessons/lessons-filters.model';
 import { IPaginationFilters } from 'src/shared/models/pagination-filters.model';
 import { TeacherEntity } from 'src/modules/users/entities/teacher.entity';
+
+// everything the mapper needs for the names in responses
+const ITEM_RELATIONS: FindOptionsRelations<LessonEntity> = {
+  teacherLessons: { teacher: { user: true, }, },
+  studentGroupLessons: { studentGroup: true, },
+  lessonGroup: true,
+  department: true,
+};
+
+// a lesson's place in the calendar: the date it was moved to, if any
+const EFFECTIVE_DATE = 'COALESCE(ls.delayedDate, ls.date)';
 
 /**
  * Lessons without any access restrictions: used as is by the admin endpoints and behind the access checks
@@ -35,7 +46,7 @@ export class LessonsService {
   async getById(id: string): Promise<ILessonItemModel> {
     const lesson = await this.lessonsRepository.findOneOrFail({
       where: { id, },
-      relations: { teacherLessons: true, studentGroupLessons: true, },
+      relations: ITEM_RELATIONS,
     });
     return this.lessonsMapper.entityToItem(lesson, true);
   }
@@ -117,10 +128,10 @@ export class LessonsService {
     const lessonsQb = this.lessonsRepository.createQueryBuilder('ls');
 
     if (dateFrom) {
-      lessonsQb.andWhere('ls.date >= :dateFrom', { dateFrom, });
+      lessonsQb.andWhere(`${EFFECTIVE_DATE} >= :dateFrom`, { dateFrom, });
     }
     if (dateTo) {
-      lessonsQb.andWhere('ls.date <= :dateTo', { dateTo, });
+      lessonsQb.andWhere(`${EFFECTIVE_DATE} <= :dateTo`, { dateTo, });
     }
     if (visibility) {
       lessonsQb.andWhere('ls.visibility = :filterVisibility', { filterVisibility: visibility, });
@@ -185,7 +196,7 @@ export class LessonsService {
     lessonsQb: SelectQueryBuilder<LessonEntity>,
     { page, pageSize, }: Partial<IPaginationFilters>,
   ): Promise<IGenericListPayloadResponse<ILessonListItemModel>> {
-    lessonsQb.orderBy('ls.date', 'ASC');
+    lessonsQb.orderBy(EFFECTIVE_DATE, 'ASC');
     if (page && pageSize !== undefined) {
       lessonsQb
         .skip((page - 1) * pageSize)
@@ -202,7 +213,7 @@ export class LessonsService {
   /** Unpaginated list ordered by date, for calendars */
   async getList(lessonsQb: SelectQueryBuilder<LessonEntity>): Promise<ILessonListItemModel[]> {
     const lessonsData = await lessonsQb
-      .orderBy('ls.date', 'ASC')
+      .orderBy(EFFECTIVE_DATE, 'ASC')
       .getMany();
     return await this.toListItems(lessonsData);
   }
@@ -212,7 +223,7 @@ export class LessonsService {
     const lessonsWithRelations = lessons.length
       ? await this.lessonsRepository.find({
         where: { id: In(lessons.map((lesson) => lesson.id)), },
-        relations: { teacherLessons: true, studentGroupLessons: true, },
+        relations: ITEM_RELATIONS,
       })
       : [];
     const lessonsById = new Map(lessonsWithRelations.map((lesson) => [lesson.id, lesson]));

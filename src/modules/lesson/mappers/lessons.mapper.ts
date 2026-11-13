@@ -10,13 +10,26 @@ export class LessonsMapper {
   }
 
   entityToItem(entity: LessonEntity, canEdit: boolean): ILessonItemModel {
-    const { id, name, date, duration, delayedDate, note, semesterId, lessonGroupId, departmentId, teacherLessons, studentGroupLessons, visibility, } = entity;
+    const {
+      id, name, date, duration, delayedDate, note, semesterId, lessonGroupId, departmentId,
+      teacherLessons, studentGroupLessons, visibility, lessonGroup, department,
+    } = entity;
     return {
       id, name, date, duration, delayedDate, note, lessonGroupId, visibility, canEdit,
       semesterId: semesterId ?? null,
       departmentId: departmentId ?? null,
       teacherIds: (teacherLessons ?? []).map((teacherLesson) => teacherLesson.teacherId),
       studentGroupIds: (studentGroupLessons ?? []).map((studentGroupLesson) => studentGroupLesson.studentGroupId),
+      lessonGroupName: lessonGroup?.name ?? '',
+      departmentName: department?.name ?? null,
+      teachers: (teacherLessons ?? []).map((teacherLesson) => ({
+        id: teacherLesson.teacherId,
+        name: teacherLesson.teacher?.user?.fullName ?? '',
+      })),
+      studentGroups: (studentGroupLessons ?? []).map((studentGroupLesson) => ({
+        id: studentGroupLesson.studentGroupId,
+        name: studentGroupLesson.studentGroup?.name ?? '',
+      })),
     };
   }
 }
