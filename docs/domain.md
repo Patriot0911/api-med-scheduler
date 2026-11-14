@@ -158,6 +158,7 @@ canManageRole(A, R) = rank(A) > R.rolePriority ∧ (isAdmin(A) ∨ R.permissions
 | `dateFrom`, `dateTo` | межі `lessons.date`; за нею ж сортуються всі списки |
 | `search` | `ILIKE` за назвою й нотаткою заняття, назвою групи занять (курсу), ПІБ викладачів, назвами студентських груп |
 | `teacherIds[]`, `studentGroupIds[]`, `departmentIds[]`, `lessonGroupIds[]`, `semesterIds[]` | за відповідними зв'язками |
+| `withoutLessonGroup` | лише заняття без групи (`true` / `1`) |
 | `groupTagIds[]` | заняття, де хоча б одна студентська група має один із тегів |
 | `visibility` | звужує те, що користувач і так бачить |
 | `page`, `pageSize` | опційно; без них повертається весь список (для календаря), завжди у форматі `{ items, meta }` і за датою |
@@ -192,6 +193,13 @@ canManageRole(A, R) = rank(A) > R.rolePriority ∧ (isAdmin(A) ∨ R.permissions
 - Заняття створюються в циклі без транзакції; помилки вхідних даних відсікаються перевірками до запису, тож частину серії може лишити лише збій самої БД.
 - Обидва ендпоінти мають адмін-аналоги в `/admin/lessons-groups`.
 
+### Керування групою (адмінка)
+
+- `DELETE /admin/lessons-groups/:id?withLessons=true` — разом із заняттями групи (в одній транзакції); без параметра заняття лишаються без групи.
+- `PUT /admin/lessons-groups/:id/lessons` `{ lessonIds }` (1–200) — наявні заняття в групу, зокрема з іншої групи; усі мають існувати (інакше 400, нічого не змінюється). Відповідь — кількість.
+- `POST /admin/lessons-groups/:id/lessons/remove` `{ lessonIds }` — виймає заняття з **цієї** групи (заняття інших груп не чіпає); відповідь — скільки вийнято.
+- `POST /admin/lessons/delete` `{ lessonIds }` — кілька занять одразу; відсутні id пропускаються, відповідь — скільки видалено.
+
 ## Карта ендпоінтів
 
 Усі шляхи з префіксом `/api`. 🔓 — без токена, 🔑 — лише токен, інакше — перелічені дозволи (`admin` проходить завжди). Зміни users і roles додатково перевіряються ієрархією ролей.
@@ -214,8 +222,8 @@ canManageRole(A, R) = rank(A) > R.rolePriority ∧ (isAdmin(A) ∨ R.permissions
 
 **lessons-groups** (домен викладачів) — усе 🔑: `GET list`, `GET my`, `GET usable`, `GET list/:id`, `POST /:groupId/lessons`, `POST /`, `POST with-lessons`, `POST generate-series`, `PUT /:id`, `DELETE /:id`, `PUT /:groupId/lessons/:lessonId`
 
-**admin/lessons** — `GET /`, `GET /:id` (read/manage_lessons) · `POST /`, `PATCH /:id`, `DELETE /:id` (manage_lessons)
+**admin/lessons** — `GET /`, `GET /:id` (read/manage_lessons) · `POST /`, `PATCH /:id`, `DELETE /:id`, `POST delete` (manage_lessons)
 
-**admin/lessons-groups** — `GET /`, `GET /:id` (read/manage_lessons) · `POST /`, `POST with-lessons`, `POST /:groupId/lessons`, `POST generate-series`, `PUT /:id`, `DELETE /:id`, `PUT /:groupId/lessons/:lessonId` (manage_lessons)
+**admin/lessons-groups** — `GET /`, `GET /:id` (read/manage_lessons) · `POST /`, `POST with-lessons`, `POST /:groupId/lessons`, `POST generate-series`, `PUT /:id`, `DELETE /:id` (`?withLessons`), `PUT /:groupId/lessons/:lessonId`, `PUT /:groupId/lessons`, `POST /:groupId/lessons/remove` (manage_lessons)
 
 **dictionaries** (`{ id, name }[]`) — `permissions`, `roles` (read_roles) · `group-tags`, `group`, `semesters`, `lesson-groups`, `teachers` (`{ id, name, departmentId }`), `departments` 🔑 (фільтри занять для всіх)

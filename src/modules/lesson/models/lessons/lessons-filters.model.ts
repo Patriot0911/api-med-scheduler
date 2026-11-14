@@ -10,6 +10,7 @@ export interface ILessonsFiltersModel {
   groupTagIds?: string[];
   departmentIds?: string[];
   lessonGroupIds?: string[];
+  withoutLessonGroup?: boolean;
   semesterIds?: string[];
   // narrows the lessons the reader may see anyway; never widens them
   visibility?: LessonVisibility;

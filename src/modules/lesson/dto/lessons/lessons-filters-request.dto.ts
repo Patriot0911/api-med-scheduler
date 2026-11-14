@@ -1,7 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsArray, IsDateString, IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsArray, IsBoolean, IsDateString, IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
 import { toArray } from 'src/shared/transforms/to-array.transform';
+import { toBoolean } from 'src/shared/transforms/to-boolean.transform';
 import { ILessonsFiltersModel } from '../../models/lessons/lessons-filters.model';
 import { LessonVisibility } from '../../models/lesson-visibility.enum';
 
@@ -55,6 +56,12 @@ export class LessonsFiltersRequestDto implements ILessonsFiltersModel {
   @IsUUID('all', { each: true, })
   @ApiPropertyOptional({ type: [String], description: 'Lessons of any of these courses (ids from /dictionaries/lesson-groups)' })
   lessonGroupIds?: string[];
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  @ApiPropertyOptional({ type: Boolean, description: 'Only lessons outside of any lesson group' })
+  withoutLessonGroup?: boolean;
 
   @IsOptional()
   @Transform(toArray)

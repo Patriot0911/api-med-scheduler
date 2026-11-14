@@ -8,6 +8,8 @@ import { IGenericListPayloadResponse } from 'src/shared/models/generic-list-payl
 import { GetLessonGroupsRequestDto } from '../dto/lesson-groups/get-lesson-groups-request.dto';
 import { CreateLessonGroupRequestDto } from '../dto/lesson-groups/create-lesson-group-request.dto';
 import { EditLessonGroupRequestDto } from '../dto/lesson-groups/edit-lesson-group-request.dto';
+import { DeleteLessonGroupRequestDto } from '../dto/lesson-groups/delete-lesson-group-request.dto';
+import { LessonIdsRequestDto } from '../dto/lessons/lesson-ids-request.dto';
 import { GenerateLessonSeriesRequestDto } from '../dto/lesson-groups/generate-lesson-series-request.dto';
 import { AddLessonsToGroupRequestDto, CreateLessonGroupWithLessonsRequestDto } from '../dto/lesson-groups/create-lesson-group-with-lessons-request.dto';
 import { ILessonGroupListItemModel } from '../models/lesson-groups/lesson-group-list-item.model';
@@ -64,8 +66,11 @@ export class AdminLessonsGroupsController {
 
   @Delete(':lessonGroupId')
   @Permissions(Permission.MANAGE_LESSONS)
-  async deleteLessonGroup(@Param('lessonGroupId') lessonGroupId: string): Promise<ILessonGroupItemModel> {
-    return await this.lessonsGroupsService.deleteLessonGroup(lessonGroupId);
+  async deleteLessonGroup(
+    @Param('lessonGroupId') lessonGroupId: string,
+    @Query() { withLessons, }: DeleteLessonGroupRequestDto,
+  ): Promise<ILessonGroupItemModel> {
+    return await this.lessonsGroupsService.deleteLessonGroup(lessonGroupId, withLessons);
   }
 
   @Post(':lessonGroupId/lessons')
@@ -78,5 +83,19 @@ export class AdminLessonsGroupsController {
   @Permissions(Permission.MANAGE_LESSONS)
   async assignLessonToGroup(@Param('lessonGroupId') lessonGroupId: string, @Param('lessonId') lessonId: string): Promise<boolean> {
     return await this.lessonsGroupsService.assignLessonToGroup(lessonGroupId, lessonId);
+  }
+
+  /** Existing lessons into the group (moved from another group or none); returns how many */
+  @Put(':lessonGroupId/lessons')
+  @Permissions(Permission.MANAGE_LESSONS)
+  async assignLessonsToGroup(@Param('lessonGroupId') lessonGroupId: string, @Body() { lessonIds, }: LessonIdsRequestDto): Promise<number> {
+    return await this.lessonsGroupsService.assignLessonsToGroup(lessonGroupId, lessonIds);
+  }
+
+  /** Takes the lessons out of the group, they stay without one; returns how many */
+  @Post(':lessonGroupId/lessons/remove')
+  @Permissions(Permission.MANAGE_LESSONS)
+  async removeLessonsFromGroup(@Param('lessonGroupId') lessonGroupId: string, @Body() { lessonIds, }: LessonIdsRequestDto): Promise<number> {
+    return await this.lessonsGroupsService.removeLessonsFromGroup(lessonGroupId, lessonIds);
   }
 }

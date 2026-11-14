@@ -136,6 +136,12 @@ export class LessonsService {
     await this.lessonsRepository.remove(lesson);
   }
 
+  /** Deletes the lessons that exist; returns how many */
+  async deleteLessons(lessonIds: string[]): Promise<number> {
+    const { affected, } = await this.lessonsRepository.delete({ id: In([...new Set(lessonIds)]), });
+    return affected ?? 0;
+  }
+
   /** Everything a lesson refers to, checked up front (e.g. before a series starts writing) */
   async assertLessonRefsExist({ teacherIds, departmentIds = [], semesterId, }: Pick<ICreateLessonModel, 'teacherIds' | 'departmentIds' | 'semesterId'>): Promise<void> {
     await this.assertTeachersExist(teacherIds);
@@ -174,7 +180,7 @@ export class LessonsService {
   }
 
   buildLessonsQuery({
-    dateFrom, dateTo, search, teacherIds, studentGroupIds, groupTagIds, departmentIds, lessonGroupIds, semesterIds, visibility,
+    dateFrom, dateTo, search, teacherIds, studentGroupIds, groupTagIds, departmentIds, lessonGroupIds, withoutLessonGroup, semesterIds, visibility,
   }: ILessonsFiltersModel): SelectQueryBuilder<LessonEntity> {
     const lessonsQb = this.lessonsRepository.createQueryBuilder('ls');
 
@@ -195,6 +201,9 @@ export class LessonsService {
     }
     if (lessonGroupIds?.length) {
       lessonsQb.andWhere('ls.lessonGroupId IN (:...filterLessonGroupIds)', { filterLessonGroupIds: lessonGroupIds, });
+    }
+    if (withoutLessonGroup) {
+      lessonsQb.andWhere('ls.lessonGroupId IS NULL');
     }
     if (semesterIds?.length) {
       lessonsQb.andWhere('ls.semesterId IN (:...filterSemesterIds)', { filterSemesterIds: semesterIds, });

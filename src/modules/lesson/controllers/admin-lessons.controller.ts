@@ -7,6 +7,7 @@ import { Permission } from 'src/shared/models/permission.enum';
 import { IGenericListPayloadResponse } from 'src/shared/models/generic-list-payload.response';
 import { GetLessonsRequestDto } from '../dto/lessons/get-lessons-request.dto';
 import { CreateLessonRequestDto } from '../dto/lessons/create-lesson-request.dto';
+import { LessonIdsRequestDto } from '../dto/lessons/lesson-ids-request.dto';
 import { EditLessonRequestDto } from '../dto/lessons/edit-lesson-request.dto';
 import { ILessonListItemModel } from '../models/lessons/lesson-list-item.model';
 import { ILessonItemModel } from '../models/lessons/lesson-item.model';
@@ -26,6 +27,13 @@ export class AdminLessonsController {
   @Permissions(Permission.READ_LESSONS, Permission.MANAGE_LESSONS)
   async getLessons(@Query() query: GetLessonsRequestDto): Promise<IGenericListPayloadResponse<ILessonListItemModel>> {
     return await this.lessonsService.getPage(this.lessonsService.buildLessonsQuery(query), query);
+  }
+
+  /** Several lessons at once; returns how many were deleted */
+  @Post('delete')
+  @Permissions(Permission.MANAGE_LESSONS)
+  async deleteLessons(@Body() { lessonIds, }: LessonIdsRequestDto): Promise<number> {
+    return await this.lessonsService.deleteLessons(lessonIds);
   }
 
   @Get(':lessonId')

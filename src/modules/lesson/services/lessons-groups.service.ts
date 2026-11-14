@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessonsGroupEntity } from '../entities/lessons-group.entity';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { IGetLessonGroupsFiltersModel } from '../models/lesson-groups/get-lesson-groups-filter.model';
 import { ILessonGroupStats, LessonGroupsMapper } from '../mappers/lesson-groups.mapper';
 import { IGenericListPayloadResponse } from 'src/shared/models/generic-list-payload.response';
@@ -124,12 +124,18 @@ export class LessonsGroupsService {
     return !!updatedLessonGroup.affected;
   }
 
-  async deleteLessonGroup(lessonGroupId: string): Promise<ILessonGroupItemModel> {
-    const lessonGroupData = await this.lessonGroupsRepository.findOneOrFail({
-      where: { id: lessonGroupId, }
+  /** Without `withLessons` the lessons stay, out of any group (ON DELETE SET NULL) */
+  async deleteLessonGroup(lessonGroupId: string, withLessons = false): Promise<ILessonGroupItemModel> {
+    return await this.lessonGroupsRepository.manager.transaction(async (manager) => {
+      const lessonGroupData = await manager.findOneOrFail(LessonsGroupEntity, {
+        where: { id: lessonGroupId, }
+      });
+      if (withLessons) {
+        await manager.delete(LessonEntity, { lessonGroupId, });
+      }
+      await manager.remove(lessonGroupData);
+      return this.lessonGroupsMapper.entityToItem({ ...lessonGroupData, id: lessonGroupId, });
     });
-    const removedLessonGroup = await this.lessonGroupsRepository.remove(lessonGroupData);
-    return this.lessonGroupsMapper.entityToItem({ ...removedLessonGroup, id: lessonGroupId, });
   }
 
   async assignLessonToGroup(lessonGroupId: string, lessonId: string): Promise<boolean> {
@@ -138,6 +144,27 @@ export class LessonsGroupsService {
     });
     await this.lessonsService.editLesson(lessonId, { lessonGroupId, });
     return true;
+  }
+
+  /** Moves existing lessons into the group, from another group or none; all of them must exist */
+  async assignLessonsToGroup(lessonGroupId: string, lessonIds: string[]): Promise<number> {
+    await this.lessonGroupsRepository.findOneOrFail({ where: { id: lessonGroupId, }, });
+    const ids = [...new Set(lessonIds)];
+    if (await this.lessonsRepository.count({ where: { id: In(ids), }, }) !== ids.length) {
+      throw new BadRequestException('Some of the lessons do not exist');
+    }
+    await this.lessonsRepository.update({ id: In(ids), }, { lessonGroupId, });
+    return ids.length;
+  }
+
+  /** Takes the lessons out of this group; lessons of other groups are left as they are. Returns how many left it. */
+  async removeLessonsFromGroup(lessonGroupId: string, lessonIds: string[]): Promise<number> {
+    await this.lessonGroupsRepository.findOneOrFail({ where: { id: lessonGroupId, }, });
+    const { affected, } = await this.lessonsRepository.update(
+      { id: In([...new Set(lessonIds)]), lessonGroupId, },
+      { lessonGroupId: null, },
+    );
+    return affected ?? 0;
   }
 
   async generateLessonSeries(data: IGenerateLessonSeriesModel): Promise<ILessonItemModel[]> {
