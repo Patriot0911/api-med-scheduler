@@ -1,6 +1,6 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, Repository, SelectQueryBuilder } from 'typeorm';
+import { Brackets, In, Repository, SelectQueryBuilder } from 'typeorm';
 import { TeacherEntity } from 'src/modules/users/entities/teacher.entity';
 import { StudentEntity } from 'src/modules/users/entities/student.entity';
 import { DepartmentEntity } from 'src/modules/departments/entities/department.entity';
@@ -14,7 +14,7 @@ import { LessonScope } from '../models/lesson-scope.enum';
 /** What the access rules need to know about a lesson, from an entity or an item model alike */
 export interface ILessonAccessTarget {
   visibility: LessonVisibility;
-  departmentId: string | null;
+  departmentIds: string[];
   teacherIds: string[];
   studentGroupIds: string[];
 }
@@ -63,18 +63,18 @@ export class LessonAccessService {
     };
   }
 
-  toAccessTarget(lesson: Pick<LessonEntity, 'visibility' | 'departmentId' | 'teacherLessons' | 'studentGroupLessons'>): ILessonAccessTarget {
+  toAccessTarget(lesson: Pick<LessonEntity, 'visibility' | 'lessonDepartments' | 'teacherLessons' | 'studentGroupLessons'>): ILessonAccessTarget {
     return {
       visibility: lesson.visibility,
-      departmentId: lesson.departmentId,
+      departmentIds: lesson.lessonDepartments.map((lessonDepartment) => lessonDepartment.departmentId),
       teacherIds: lesson.teacherLessons.map((teacherLesson) => teacherLesson.teacherId),
       studentGroupIds: lesson.studentGroupLessons.map((studentGroupLesson) => studentGroupLesson.studentGroupId),
     };
   }
 
-  canEdit(actor: ILessonActorModel, lesson: Pick<ILessonAccessTarget, 'departmentId' | 'teacherIds'>): boolean {
+  canEdit(actor: ILessonActorModel, lesson: Pick<ILessonAccessTarget, 'departmentIds' | 'teacherIds'>): boolean {
     return (!!actor.teacherId && lesson.teacherIds.includes(actor.teacherId))
-      || (!!actor.headOfDepartmentId && lesson.departmentId === actor.headOfDepartmentId);
+      || (!!actor.headOfDepartmentId && lesson.departmentIds.includes(actor.headOfDepartmentId));
   }
 
   canSee(actor: ILessonActorModel, lesson: ILessonAccessTarget): boolean {
@@ -124,7 +124,7 @@ export class LessonAccessService {
       case LessonScope.DEPARTMENT:
         return actor.headOfDepartmentId
           ? {
-            sql: 'ls.departmentId = :actorHeadOfDepartmentId',
+            sql: 'EXISTS (SELECT 1 FROM lesson_departments ald WHERE ald.lesson_id = ls.id AND ald.department_id = :actorHeadOfDepartmentId)',
             params: { actorHeadOfDepartmentId: actor.headOfDepartmentId, },
           }
           : null;
@@ -145,7 +145,7 @@ export class LessonAccessService {
     }
   }
 
-  assertCanEdit(actor: ILessonActorModel, lesson: Pick<ILessonAccessTarget, 'departmentId' | 'teacherIds'>): void {
+  assertCanEdit(actor: ILessonActorModel, lesson: Pick<ILessonAccessTarget, 'departmentIds' | 'teacherIds'>): void {
     if (!this.canEdit(actor, lesson)) {
       throw new ForbiddenException('Only the lesson teachers and the head of its department can edit the lesson');
     }
@@ -157,7 +157,29 @@ export class LessonAccessService {
     }
   }
 
-  /** A teacher may put a lesson or a lesson group in no department or in their own one */
+  /** Whoever creates a lesson teaches it, the head of a department included */
+  assertIsAuthorAmongTeachers(actor: ILessonActorModel & { teacherId: string }, teacherIds: string[]): void {
+    if (!teacherIds.includes(actor.teacherId)) {
+      throw new BadRequestException('Add yourself to the lesson teachers');
+    }
+  }
+
+  /**
+   * A lesson belongs only to departments of its teachers, so it can't be handed to an unrelated department
+   * (and its head). Checked for the departments being added; those already on the lesson stay.
+   */
+  async assertCanAddLessonDepartments(addedDepartmentIds: string[], teacherIds: string[]): Promise<void> {
+    if (addedDepartmentIds.length === 0) {
+      return;
+    }
+    const teachers = await this.teachersRepository.find({ where: { id: In(teacherIds), }, select: ['id', 'departmentId',], });
+    const teacherDepartmentIds = new Set(teachers.map((teacher) => teacher.departmentId));
+    if (addedDepartmentIds.some((departmentId) => !teacherDepartmentIds.has(departmentId))) {
+      throw new ForbiddenException('A lesson can belong only to the departments of its teachers');
+    }
+  }
+
+  /** A teacher may put a lesson group in no department or in their own one */
   async assertCanSetDepartment(actor: ILessonActorModel, departmentId: string | null | undefined): Promise<void> {
     if (!departmentId) {
       return;
@@ -172,6 +194,19 @@ export class LessonAccessService {
   canUseGroup(actor: ILessonActorModel, group: TLessonGroupOwnership): boolean {
     return (!!actor.teacherId && group.createdByTeacherId === actor.teacherId)
       || (!!actor.departmentId && group.departmentId === actor.departmentId);
+  }
+
+  /** Same rule as canUseGroup, as a query condition on the given lesson group alias */
+  applyUsableGroups(groupsQb: SelectQueryBuilder<LessonsGroupEntity>, alias: string, actor: ILessonActorModel): SelectQueryBuilder<LessonsGroupEntity> {
+    if (!actor.teacherId) {
+      return groupsQb.andWhere('1 = 0');
+    }
+    return groupsQb.andWhere(new Brackets((usableQb) => {
+      usableQb.where(`${alias}.createdByTeacherId = :usableTeacherId`, { usableTeacherId: actor.teacherId, });
+      if (actor.departmentId) {
+        usableQb.orWhere(`${alias}.departmentId = :usableDepartmentId`, { usableDepartmentId: actor.departmentId, });
+      }
+    }));
   }
 
   /** Managing a group: renaming, deleting. The creator and the head of the group's department may */

@@ -4,7 +4,7 @@ import { SemesterEntity } from 'src/modules/semester/entities/semester.entity';
 import { StudentGroupLessonEntity } from './student-group-lesson.entity';
 import { TeacherLessonEntity } from './teacher-lesson.entity';
 import { LessonVisibility } from '../models/lesson-visibility.enum';
-import { DepartmentEntity } from 'src/modules/departments/entities/department.entity';
+import { LessonDepartmentEntity } from './lesson-department.entity';
 
 @Entity('lessons')
 export class LessonEntity {
@@ -39,20 +39,17 @@ export class LessonEntity {
   @Column({ name: 'semester_id', nullable: true })
   semesterId?: string;
 
-  @ManyToOne(() => LessonsGroupEntity, (group) => group.lessons)
+  // optional: a series or lessons that belong together; deleting the group keeps the lesson
+  @ManyToOne(() => LessonsGroupEntity, (group) => group.lessons, { nullable: true, onDelete: 'SET NULL', })
   @JoinColumn({ name: 'lesson_group_id' })
-  lessonGroup: LessonsGroupEntity;
+  lessonGroup?: LessonsGroupEntity | null;
 
-  @Column({ name: 'lesson_group_id' })
-  lessonGroupId: string;
+  @Column({ name: 'lesson_group_id', type: 'uuid', nullable: true, })
+  lessonGroupId: string | null;
 
-  // Its head may edit the lesson
-  @ManyToOne(() => DepartmentEntity, { nullable: true, onDelete: 'SET NULL', })
-  @JoinColumn({ name: 'department_id' })
-  department?: DepartmentEntity | null;
-
-  @Column({ name: 'department_id', type: 'uuid', nullable: true, })
-  departmentId: string | null;
+  // the head of each of them may edit the lesson
+  @OneToMany(() => LessonDepartmentEntity, (lessonDepartment) => lessonDepartment.lesson)
+  lessonDepartments: LessonDepartmentEntity[];
 
   @Column({
     type: 'enum',

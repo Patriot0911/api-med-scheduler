@@ -11,20 +11,24 @@ export class LessonsMapper {
 
   entityToItem(entity: LessonEntity, canEdit: boolean): ILessonItemModel {
     const {
-      id, name, date, duration, delayedDate, note, semesterId, lessonGroupId, departmentId,
-      teacherLessons, studentGroupLessons, visibility, lessonGroup, department,
+      id, name, date, duration, delayedDate, note, semesterId, lessonGroupId,
+      teacherLessons, studentGroupLessons, lessonDepartments, visibility, lessonGroup,
     } = entity;
     return {
-      id, name, date, duration, delayedDate, note, lessonGroupId, visibility, canEdit,
+      id, name, date, duration, delayedDate, note, visibility, canEdit,
+      lessonGroupId: lessonGroupId ?? null,
       semesterId: semesterId ?? null,
-      departmentId: departmentId ?? null,
       teacherIds: (teacherLessons ?? []).map((teacherLesson) => teacherLesson.teacherId),
       studentGroupIds: (studentGroupLessons ?? []).map((studentGroupLesson) => studentGroupLesson.studentGroupId),
-      lessonGroupName: lessonGroup?.name ?? '',
-      departmentName: department?.name ?? null,
+      lessonGroupName: lessonGroup?.name ?? null,
       teachers: (teacherLessons ?? []).map((teacherLesson) => ({
         id: teacherLesson.teacherId,
         name: teacherLesson.teacher?.user?.fullName ?? '',
+      })),
+      departmentIds: (lessonDepartments ?? []).map((lessonDepartment) => lessonDepartment.departmentId),
+      departments: (lessonDepartments ?? []).map((lessonDepartment) => ({
+        id: lessonDepartment.departmentId,
+        name: lessonDepartment.department?.name ?? '',
       })),
       studentGroups: (studentGroupLessons ?? []).map((studentGroupLesson) => ({
         id: studentGroupLesson.studentGroupId,

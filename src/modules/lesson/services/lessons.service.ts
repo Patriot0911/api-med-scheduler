@@ -7,6 +7,10 @@ import { LessonsMapper } from '../mappers/lessons.mapper';
 import { ILessonListItemModel } from '../models/lessons/lesson-list-item.model';
 import { ILessonItemModel } from '../models/lessons/lesson-item.model';
 import { ICreateLessonModel } from '../models/lessons/create-lesson.model';
+import { LessonsGroupEntity } from '../entities/lessons-group.entity';
+import { LessonDepartmentEntity } from '../entities/lesson-department.entity';
+import { DepartmentEntity } from 'src/modules/departments/entities/department.entity';
+import { SemesterEntity } from 'src/modules/semester/entities/semester.entity';
 import { IEditLessonModel } from '../models/lessons/edit-lesson.model';
 import { TeacherLessonEntity } from '../entities/teacher-lesson.entity';
 import { StudentGroupLessonEntity } from '../entities/student-group-lesson.entity';
@@ -18,8 +22,8 @@ import { TeacherEntity } from 'src/modules/users/entities/teacher.entity';
 const ITEM_RELATIONS: FindOptionsRelations<LessonEntity> = {
   teacherLessons: { teacher: { user: true, }, },
   studentGroupLessons: { studentGroup: true, },
+  lessonDepartments: { department: true, },
   lessonGroup: true,
-  department: true,
 };
 
 // a lesson's place in the calendar: the date it was moved to, if any
@@ -40,6 +44,12 @@ export class LessonsService {
     private studentGroupLessonRepository: Repository<StudentGroupLessonEntity>,
     @InjectRepository(TeacherEntity)
     private teachersRepository: Repository<TeacherEntity>,
+    @InjectRepository(LessonsGroupEntity)
+    private lessonGroupsRepository: Repository<LessonsGroupEntity>,
+    @InjectRepository(LessonDepartmentEntity)
+    private lessonDepartmentRepository: Repository<LessonDepartmentEntity>,
+    @InjectRepository(DepartmentEntity)
+    private departmentsRepository: Repository<DepartmentEntity>,
     private readonly lessonsMapper: LessonsMapper,
   ) {}
 
@@ -54,14 +64,18 @@ export class LessonsService {
   async findWithRelations(id: string): Promise<LessonEntity | null> {
     return await this.lessonsRepository.findOne({
       where: { id, },
-      relations: { teacherLessons: true, studentGroupLessons: true, },
+      relations: { teacherLessons: true, studentGroupLessons: true, lessonDepartments: true, },
     });
   }
 
-  async createLesson({ teacherIds, studentGroupIds, ...data }: ICreateLessonModel): Promise<ILessonItemModel> {
+  async createLesson({ teacherIds, studentGroupIds, departmentIds = [], semesterId, ...data }: ICreateLessonModel): Promise<ILessonItemModel> {
     const lessonTeacherIds = await this.assertTeachersExist(teacherIds);
+    const lessonDepartmentIds = await this.assertDepartmentsExist(departmentIds);
+    await this.assertLessonGroupExists(data.lessonGroupId);
 
-    const createdLesson = await this.lessonsRepository.save(this.lessonsRepository.create(data));
+    const createdLesson = await this.lessonsRepository.save(
+      this.lessonsRepository.create({ ...data, semesterId: semesterId ?? undefined, }),
+    );
 
     await this.teacherLessonRepository.insert(
       lessonTeacherIds.map((teacherId) => ({ teacherId, lessonId: createdLesson.id, })),
@@ -71,14 +85,20 @@ export class LessonsService {
         studentGroupIds.map((studentGroupId) => ({ studentGroupId, lessonId: createdLesson.id, })),
       );
     }
+    if (lessonDepartmentIds.length > 0) {
+      await this.lessonDepartmentRepository.insert(
+        lessonDepartmentIds.map((departmentId) => ({ departmentId, lessonId: createdLesson.id, })),
+      );
+    }
 
     return this.getById(createdLesson.id);
   }
 
-  async editLesson(lessonId: string, { teacherIds, studentGroupIds, ...data }: IEditLessonModel): Promise<ILessonItemModel> {
+  async editLesson(lessonId: string, { teacherIds, studentGroupIds, departmentIds, ...data }: IEditLessonModel): Promise<ILessonItemModel> {
     const lesson = await this.lessonsRepository.findOneOrFail({
       where: { id: lessonId, },
     });
+    await this.assertLessonGroupExists(data.lessonGroupId);
     Object.assign(lesson, data);
 
     if (teacherIds) {
@@ -98,6 +118,16 @@ export class LessonsService {
       }
     }
 
+    if (departmentIds) {
+      const lessonDepartmentIds = await this.assertDepartmentsExist(departmentIds);
+      await this.lessonDepartmentRepository.delete({ lessonId, });
+      if (lessonDepartmentIds.length > 0) {
+        await this.lessonDepartmentRepository.insert(
+          lessonDepartmentIds.map((departmentId) => ({ departmentId, lessonId, })),
+        );
+      }
+    }
+
     await this.lessonsRepository.save(lesson);
     return this.getById(lessonId);
   }
@@ -107,6 +137,30 @@ export class LessonsService {
       where: { id: lessonId, },
     });
     await this.lessonsRepository.remove(lesson);
+  }
+
+  /** Everything a lesson refers to, checked up front (e.g. before a series starts writing) */
+  async assertLessonRefsExist({ teacherIds, departmentIds = [], semesterId, }: Pick<ICreateLessonModel, 'teacherIds' | 'departmentIds' | 'semesterId'>): Promise<void> {
+    await this.assertTeachersExist(teacherIds);
+    await this.assertDepartmentsExist(departmentIds);
+    if (semesterId) {
+      await this.lessonsRepository.manager.getRepository(SemesterEntity).findOneOrFail({ where: { id: semesterId, }, });
+    }
+  }
+
+  /** Returns the ids without duplicates */
+  async assertDepartmentsExist(departmentIds: string[]): Promise<string[]> {
+    const ids = [...new Set(departmentIds)];
+    if (ids.length > 0 && await this.departmentsRepository.count({ where: { id: In(ids), }, }) !== ids.length) {
+      throw new BadRequestException('Some of the lesson departments do not exist');
+    }
+    return ids;
+  }
+
+  async assertLessonGroupExists(lessonGroupId: string | null | undefined): Promise<void> {
+    if (lessonGroupId) {
+      await this.lessonGroupsRepository.findOneOrFail({ where: { id: lessonGroupId, }, });
+    }
   }
 
   /** A lesson keeps at least one teacher, and all of them must exist. Returns the ids without duplicates. */
@@ -137,7 +191,10 @@ export class LessonsService {
       lessonsQb.andWhere('ls.visibility = :filterVisibility', { filterVisibility: visibility, });
     }
     if (departmentIds?.length) {
-      lessonsQb.andWhere('ls.departmentId IN (:...filterDepartmentIds)', { filterDepartmentIds: departmentIds, });
+      lessonsQb.andWhere(
+        'EXISTS (SELECT 1 FROM lesson_departments fld WHERE fld.lesson_id = ls.id AND fld.department_id IN (:...filterDepartmentIds))',
+        { filterDepartmentIds: departmentIds, },
+      );
     }
     if (lessonGroupIds?.length) {
       lessonsQb.andWhere('ls.lessonGroupId IN (:...filterLessonGroupIds)', { filterLessonGroupIds: lessonGroupIds, });

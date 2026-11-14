@@ -34,21 +34,24 @@ export class ManagedLessonsService {
     return this.withCanEdit(actor, await this.lessonsService.getById(lessonId));
   }
 
-  /** The actor has to be able to edit the lesson they create: they teach it or head its department */
   async createLesson(data: ICreateLessonModel, actor: ILessonActorModel): Promise<ILessonItemModel> {
     this.lessonAccessService.assertIsTeacher(actor);
-    await this.lessonAccessService.assertCanSetDepartment(actor, data.departmentId);
-    this.lessonAccessService.assertCanEdit(actor, { departmentId: data.departmentId ?? null, teacherIds: data.teacherIds, });
+    this.lessonAccessService.assertIsAuthorAmongTeachers(actor, data.teacherIds);
+    await this.lessonAccessService.assertCanAddLessonDepartments(data.departmentIds ?? [], data.teacherIds);
     if (data.lessonGroupId) {
       await this.assertCanUseGroup(actor, data.lessonGroupId);
     }
-    return await this.lessonsService.createLesson(data);
+    return this.withCanEdit(actor, await this.lessonsService.createLesson(data));
   }
 
   async editLesson(lessonId: string, data: IEditLessonModel, actor: ILessonActorModel): Promise<ILessonItemModel> {
     const lesson = await this.getEditableLessonOrFail(lessonId, actor);
-    if (data.departmentId !== undefined && data.departmentId !== lesson.departmentId) {
-      await this.lessonAccessService.assertCanSetDepartment(actor, data.departmentId);
+    if (data.departmentIds) {
+      const current = this.lessonAccessService.toAccessTarget(lesson);
+      await this.lessonAccessService.assertCanAddLessonDepartments(
+        data.departmentIds.filter((departmentId) => !current.departmentIds.includes(departmentId)),
+        data.teacherIds ?? current.teacherIds,
+      );
     }
     if (data.lessonGroupId && data.lessonGroupId !== lesson.lessonGroupId) {
       await this.assertCanUseGroup(actor, data.lessonGroupId);

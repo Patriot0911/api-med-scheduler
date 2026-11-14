@@ -13,7 +13,7 @@ import { ILessonGroupDictionaryItem } from '../models/lesson-groups/lesson-group
 import { LessonEntity } from '../entities/lesson.entity';
 import { LessonsService } from './lessons.service';
 import { IGenerateLessonSeriesModel } from '../models/lesson-groups/generate-lesson-series.model';
-import { ICreateLessonGroupWithLessonsModel } from '../models/lesson-groups/create-lesson-group-with-lessons.model';
+import { IAddLessonsToGroupModel, ICreateLessonGroupWithLessonsModel, TLessonTemplateModel } from '../models/lesson-groups/create-lesson-group-with-lessons.model';
 import { ILessonGroupWithLessonsModel } from '../models/lesson-groups/lesson-group-with-lessons.model';
 import { ILessonItemModel } from '../models/lessons/lesson-item.model';
 
@@ -143,9 +143,12 @@ export class LessonsGroupsService {
   async generateLessonSeries(data: IGenerateLessonSeriesModel): Promise<ILessonItemModel[]> {
     const baseLesson = await this.lessonsRepository.findOneOrFail({
       where: { id: data.baseLessonId, },
-      relations: { teacherLessons: true, studentGroupLessons: true, },
+      relations: { teacherLessons: true, studentGroupLessons: true, lessonDepartments: true, },
     });
 
+    if (!baseLesson.lessonGroupId) {
+      throw new BadRequestException('Put the lesson into a group before repeating it');
+    }
     const dates = this.resolveRecurrenceDates(baseLesson.date, 1, data);
 
     const createdLessons: ILessonItemModel[] = [];
@@ -156,7 +159,7 @@ export class LessonsGroupsService {
         duration: baseLesson.duration,
         semesterId: baseLesson.semesterId!,
         lessonGroupId: baseLesson.lessonGroupId,
-        departmentId: baseLesson.departmentId,
+        departmentIds: baseLesson.lessonDepartments.map((lessonDepartment) => lessonDepartment.departmentId),
         note: baseLesson.note ?? undefined,
         teacherIds: baseLesson.teacherLessons.map((teacherLesson) => teacherLesson.teacherId),
         studentGroupIds: baseLesson.studentGroupLessons.map((studentGroupLesson) => studentGroupLesson.studentGroupId),
@@ -168,42 +171,39 @@ export class LessonsGroupsService {
     return createdLessons;
   }
 
+  /** Everything is checked before the group is written, so a bad request leaves no half-made series */
   async createLessonGroupWithLessons(
-    data: ICreateLessonGroupWithLessonsModel,
+    { lessonGroup, lesson, dates, }: ICreateLessonGroupWithLessonsModel,
     ownership: TLessonGroupOwnership = NO_OWNERSHIP,
   ): Promise<ILessonGroupWithLessonsModel> {
-    const dates = this.resolveRecurrenceDates(data.date, 0, data);
-    // fail before the group is created
-    await this.lessonsService.assertTeachersExist(data.teacherIds);
-
-    const newLessonGroup = this.lessonGroupsRepository.create({
-      name: data.name,
-      note: data.note,
+    await this.lessonsService.assertLessonRefsExist(lesson);
+    const createdLessonGroup = await this.lessonGroupsRepository.save(this.lessonGroupsRepository.create({
+      name: lessonGroup.name,
+      note: lessonGroup.note,
       ...ownership,
-    },);
-    const createdLessonGroup = await this.lessonGroupsRepository.save(newLessonGroup);
-
-    const lessons: ILessonItemModel[] = [];
-    for (const date of dates) {
-      const createdLesson = await this.lessonsService.createLesson({
-        name: data.name,
-        date,
-        duration: data.duration,
-        semesterId: data.semesterId,
-        lessonGroupId: createdLessonGroup.id,
-        departmentId: ownership.departmentId,
-        note: data.note,
-        teacherIds: data.teacherIds,
-        studentGroupIds: data.studentGroupIds,
-        visibility: data.visibility,
-      });
-      lessons.push(createdLesson);
-    }
-
+    }));
     return {
       lessonGroup: this.lessonGroupsMapper.entityToItem(createdLessonGroup),
-      lessons,
+      lessons: await this.createLessonsAt(createdLessonGroup.id, lesson, dates),
     };
+  }
+
+  async addLessonsToGroup(lessonGroupId: string, { lesson, dates, }: IAddLessonsToGroupModel): Promise<ILessonItemModel[]> {
+    await this.lessonGroupsRepository.findOneOrFail({ where: { id: lessonGroupId, }, });
+    await this.lessonsService.assertLessonRefsExist(lesson);
+    return await this.createLessonsAt(lessonGroupId, lesson, dates);
+  }
+
+  /** One lesson per distinct date, in date order */
+  private async createLessonsAt(lessonGroupId: string, lesson: TLessonTemplateModel, dates: Date[]): Promise<ILessonItemModel[]> {
+    const lessonDates = [...new Set(dates.map((date) => date.getTime()))]
+      .sort((a, b) => a - b)
+      .map((time) => new Date(time));
+    const lessons: ILessonItemModel[] = [];
+    for (const date of lessonDates) {
+      lessons.push(await this.lessonsService.createLesson({ ...lesson, date, lessonGroupId, }));
+    }
+    return lessons;
   }
 
   private resolveRecurrenceDates(anchorDate: Date, startIndex: number, recurrence: IRecurrenceModel): Date[] {

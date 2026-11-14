@@ -9,7 +9,7 @@ import { GetLessonGroupsRequestDto } from '../dto/lesson-groups/get-lesson-group
 import { CreateLessonGroupRequestDto } from '../dto/lesson-groups/create-lesson-group-request.dto';
 import { EditLessonGroupRequestDto } from '../dto/lesson-groups/edit-lesson-group-request.dto';
 import { GenerateLessonSeriesRequestDto } from '../dto/lesson-groups/generate-lesson-series-request.dto';
-import { CreateLessonGroupWithLessonsRequestDto } from '../dto/lesson-groups/create-lesson-group-with-lessons-request.dto';
+import { AddLessonsToGroupRequestDto, CreateLessonGroupWithLessonsRequestDto } from '../dto/lesson-groups/create-lesson-group-with-lessons-request.dto';
 import { ILessonGroupListItemModel } from '../models/lesson-groups/lesson-group-list-item.model';
 import { ILessonGroupItemModel } from '../models/lesson-groups/lesson-group-item.model';
 import { ILessonGroupWithLessonsModel } from '../models/lesson-groups/lesson-group-with-lessons.model';
@@ -47,7 +47,7 @@ export class AdminLessonsGroupsController {
   @Post('with-lessons')
   @Permissions(Permission.MANAGE_LESSONS)
   async createLessonGroupWithLessons(@Body() dto: CreateLessonGroupWithLessonsRequestDto): Promise<ILessonGroupWithLessonsModel> {
-    return await this.lessonsGroupsService.createLessonGroupWithLessons(dto, { createdByTeacherId: null, departmentId: dto.departmentId ?? null, });
+    return await this.lessonsGroupsService.createLessonGroupWithLessons(dto);
   }
 
   @Post('generate-series')
@@ -66,6 +66,12 @@ export class AdminLessonsGroupsController {
   @Permissions(Permission.MANAGE_LESSONS)
   async deleteLessonGroup(@Param('lessonGroupId') lessonGroupId: string): Promise<ILessonGroupItemModel> {
     return await this.lessonsGroupsService.deleteLessonGroup(lessonGroupId);
+  }
+
+  @Post(':lessonGroupId/lessons')
+  @Permissions(Permission.MANAGE_LESSONS)
+  async addLessonsToGroup(@Param('lessonGroupId') lessonGroupId: string, @Body() dto: AddLessonsToGroupRequestDto): Promise<ILessonItemModel[]> {
+    return await this.lessonsGroupsService.addLessonsToGroup(lessonGroupId, dto);
   }
 
   @Put(':lessonGroupId/lessons/:lessonId')

@@ -9,13 +9,13 @@ export interface ILessonItemModel {
   delayedDate: Date | null;
   note: string | null;
   semesterId: string | null;
-  lessonGroupId: string;
-  departmentId: string | null;
+  lessonGroupId: string | null;
+  departmentIds: string[];
   teacherIds: string[];
   studentGroupIds: string[];
   // names for display, so clients (anonymous ones included) need no dictionaries
-  lessonGroupName: string;
-  departmentName: string | null;
+  lessonGroupName: string | null;
+  departments: ILessonRefModel[];
   teachers: ILessonRefModel[];
   studentGroups: ILessonRefModel[];
   visibility: LessonVisibility;

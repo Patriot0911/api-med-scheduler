@@ -9,14 +9,15 @@ export class CreateLessonRequestDto implements ICreateLessonModel {
   @IsString()
   name: string;
 
-  @ApiProperty()
-  @IsUUID()
-  semesterId: string;
-
-  @ApiProperty()
-  @IsUUID()
+  @ApiPropertyOptional({ nullable: true, })
   @IsOptional()
-  lessonGroupId?: string;
+  @IsUUID()
+  semesterId?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, description: 'Optional lesson group (a series, lessons that belong together); null takes the lesson out of its group' })
+  @IsOptional()
+  @IsUUID()
+  lessonGroupId?: string | null;
 
   @ApiProperty({
     example: '2026-31-01T10:00:00Z',
@@ -37,12 +38,13 @@ export class CreateLessonRequestDto implements ICreateLessonModel {
   delayedDate?: Date;
 
   @ApiPropertyOptional({
-    nullable: true,
-    description: 'Department of the lesson, optional. Its head may edit the lesson. A teacher may set only their own department.',
+    type: [String],
+    description: 'Departments of the lesson; the head of each may edit it. A teacher may add only departments of the lesson teachers.',
   })
   @IsOptional()
-  @IsUUID()
-  departmentId?: string | null;
+  @IsArray()
+  @IsUUID('all', { each: true, })
+  departmentIds?: string[];
 
 
   @ApiProperty({ description: 'Teacher profile ids (TeacherEntity.id, not user id), from any department. Every one of them may edit the lesson.' })

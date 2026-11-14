@@ -6,11 +6,12 @@ import { GetLessonGroupsRequestDto } from '../dto/lesson-groups/get-lesson-group
 import { CreateLessonGroupRequestDto } from '../dto/lesson-groups/create-lesson-group-request.dto';
 import { EditLessonGroupRequestDto } from '../dto/lesson-groups/edit-lesson-group-request.dto';
 import { GenerateLessonSeriesRequestDto } from '../dto/lesson-groups/generate-lesson-series-request.dto';
-import { CreateLessonGroupWithLessonsRequestDto } from '../dto/lesson-groups/create-lesson-group-with-lessons-request.dto';
+import { AddLessonsToGroupRequestDto, CreateLessonGroupWithLessonsRequestDto } from '../dto/lesson-groups/create-lesson-group-with-lessons-request.dto';
 import { ILessonGroupListItemModel } from '../models/lesson-groups/lesson-group-list-item.model';
 import { ILessonGroupItemModel } from '../models/lesson-groups/lesson-group-item.model';
 import { ILessonGroupWithLessonsModel } from '../models/lesson-groups/lesson-group-with-lessons.model';
 import { ILessonItemModel } from '../models/lessons/lesson-item.model';
+import { ILessonGroupDictionaryItem } from '../models/lesson-groups/lesson-group-dictionary-item.model';
 import { ManagedLessonGroupsService } from '../services/managed-lesson-groups.service';
 import { LessonActor } from '../decorators/lesson-actor.decorator';
 import type { ILessonActorModel } from '../models/lesson-actor.model';
@@ -28,6 +29,16 @@ export class LessonsGroupsController {
   @Get('list')
   async getLessonGroups(@Query() params: GetLessonGroupsRequestDto): Promise<IGenericListPayloadResponse<ILessonGroupListItemModel>> {
     return await this.managedLessonGroupsService.getAll(params);
+  }
+
+  @Get('my')
+  async getOwnLessonGroups(@LessonActor() actor: ILessonActorModel): Promise<ILessonGroupDictionaryItem[]> {
+    return await this.managedLessonGroupsService.getOwn(actor);
+  }
+
+  @Get('usable')
+  async getUsableLessonGroups(@LessonActor() actor: ILessonActorModel): Promise<ILessonGroupDictionaryItem[]> {
+    return await this.managedLessonGroupsService.getUsable(actor);
   }
 
   @Get('list/:lessonGroupId')
@@ -74,6 +85,15 @@ export class LessonsGroupsController {
     @LessonActor() actor: ILessonActorModel,
   ): Promise<ILessonGroupItemModel> {
     return await this.managedLessonGroupsService.deleteLessonGroup(lessonGroupId, actor);
+  }
+
+  @Post(':lessonGroupId/lessons')
+  async addLessonsToGroup(
+    @Param('lessonGroupId') lessonGroupId: string,
+    @Body() dto: AddLessonsToGroupRequestDto,
+    @LessonActor() actor: ILessonActorModel,
+  ): Promise<ILessonItemModel[]> {
+    return await this.managedLessonGroupsService.addLessonsToGroup(lessonGroupId, dto, actor);
   }
 
   @Put(':lessonGroupId/lessons/:lessonId')

@@ -9,6 +9,7 @@ import { LessonsGroupsController } from './controllers/lessons-groups.controller
 import { AdminLessonsController } from './controllers/admin-lessons.controller';
 import { AdminLessonsGroupsController } from './controllers/admin-lessons-groups.controller';
 import { LessonGroupsMapper } from './mappers/lesson-groups.mapper';
+import { LessonDepartmentEntity } from './entities/lesson-department.entity';
 import { LessonsMapper } from './mappers/lessons.mapper';
 import { StudentGroupLessonEntity } from './entities/student-group-lesson.entity';
 import { TeacherLessonEntity } from './entities/teacher-lesson.entity';
@@ -27,6 +28,7 @@ import { ManagedLessonGroupsService } from './services/managed-lesson-groups.ser
       LessonsGroupEntity,
       StudentGroupLessonEntity,
       TeacherLessonEntity,
+      LessonDepartmentEntity,
       TeacherEntity,
       StudentEntity,
       DepartmentEntity,
