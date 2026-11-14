@@ -30,7 +30,7 @@ PasswordResetToken ──> User
 | `GroupTagEntity` | `group_tags` | Мітка групи (форма навчання, спеціальність тощо) |
 | `SemesterEntity` | `semesters` | Навчальний період `dateFrom`–`dateTo` |
 | `LessonsGroupEntity` | `lessons_group` | Серія або логічно пов'язані заняття («Анатомія, лекція»). Має творця-викладача і, за бажанням, кафедру. Заняттю група не обов'язкова; видалення групи лишає її заняття без групи (`ON DELETE SET NULL`) |
-| `LessonEntity` | `lessons` | Одне заняття: `date`, `duration` (хв, ≥5), `delayedDate` (перенесено на), `note`, `visibility`, `departmentId?`, `semesterId?` |
+| `LessonEntity` | `lessons` | Одне заняття: `date`, `duration` (хв, ≥5), `note`, `visibility`, `semesterId?`, `lessonGroupId?`. Окремого «перенесення» немає: щоб перенести заняття, редагують його `date` |
 | `LessonDepartmentEntity` | `lesson_departments` | Кафедри заняття (0..N). Завідувач кожної з них редагує заняття й бачить його |
 | `TeacherLessonEntity` | `teacher_lesson` | Викладачі заняття. Усі рівні: кожен може редагувати заняття |
 | `StudentGroupLessonEntity` | `student_group_lesson` | Групи, для яких проводиться заняття |
@@ -155,7 +155,7 @@ canManageRole(A, R) = rank(A) > R.rolePriority ∧ (isAdmin(A) ∨ R.permissions
 
 | Фільтр | Суть |
 |---|---|
-| `dateFrom`, `dateTo` | межі **фактичної** дати `COALESCE(delayedDate, date)`: перенесене заняття потрапляє в діапазон нової дати. За нею ж сортуються всі списки |
+| `dateFrom`, `dateTo` | межі `lessons.date`; за нею ж сортуються всі списки |
 | `search` | `ILIKE` за назвою й нотаткою заняття, назвою групи занять (курсу), ПІБ викладачів, назвами студентських груп |
 | `teacherIds[]`, `studentGroupIds[]`, `departmentIds[]`, `lessonGroupIds[]`, `semesterIds[]` | за відповідними зв'язками |
 | `groupTagIds[]` | заняття, де хоча б одна студентська група має один із тегів |
@@ -182,7 +182,7 @@ canManageRole(A, R) = rank(A) > R.rolePriority ∧ (isAdmin(A) ∨ R.permissions
 
 Нова дія над заняттями: правило → `LessonAccessService`, логіка → `LessonsService`, зв'язка → `Managed*Service`, ендпоінт → контролер з `@LessonActor()`. Адмін-варіант — в `admin-*.controller.ts` поверх базового сервісу.
 
-Список груп занять (`GET /lessons-groups/list`, `GET /admin/lessons-groups`) відсортований за назвою; кожен рядок має `departmentName`, `createdByTeacherName`, `lessonsCount` і період `firstLessonDate`–`lastLessonDate` за фактичними датами занять.
+Список груп занять (`GET /lessons-groups/list`, `GET /admin/lessons-groups`) відсортований за назвою; кожен рядок має `departmentName`, `createdByTeacherName`, `lessonsCount` і період `firstLessonDate`–`lastLessonDate` (найраніша й найпізніша `date` її занять).
 
 ### Серії занять
 

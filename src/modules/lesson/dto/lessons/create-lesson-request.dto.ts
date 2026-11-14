@@ -27,16 +27,6 @@ export class CreateLessonRequestDto implements ICreateLessonModel {
   @IsDate()
   date: Date;
 
-  @ApiProperty({
-    required: false,
-    example: '2026-31-01T10:00:00Z',
-    description: 'ISO 8601 date string',
-  })
-  @Type(() => Date)
-  @IsDate()
-  @IsOptional()
-  delayedDate?: Date;
-
   @ApiPropertyOptional({
     type: [String],
     description: 'Departments of the lesson; the head of each may edit it. A teacher may add only departments of the lesson teachers.',

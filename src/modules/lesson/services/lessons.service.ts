@@ -26,9 +26,6 @@ const ITEM_RELATIONS: FindOptionsRelations<LessonEntity> = {
   lessonGroup: true,
 };
 
-// a lesson's place in the calendar: the date it was moved to, if any
-const EFFECTIVE_DATE = 'COALESCE(ls.delayedDate, ls.date)';
-
 /**
  * Lessons without any access restrictions: used as is by the admin endpoints and behind the access checks
  * by the teacher domain. Items come with `canEdit: true`; the teacher domain recomputes it for its actor.
@@ -182,10 +179,10 @@ export class LessonsService {
     const lessonsQb = this.lessonsRepository.createQueryBuilder('ls');
 
     if (dateFrom) {
-      lessonsQb.andWhere(`${EFFECTIVE_DATE} >= :dateFrom`, { dateFrom, });
+      lessonsQb.andWhere('ls.date >= :dateFrom', { dateFrom, });
     }
     if (dateTo) {
-      lessonsQb.andWhere(`${EFFECTIVE_DATE} <= :dateTo`, { dateTo, });
+      lessonsQb.andWhere('ls.date <= :dateTo', { dateTo, });
     }
     if (visibility) {
       lessonsQb.andWhere('ls.visibility = :filterVisibility', { filterVisibility: visibility, });
@@ -253,7 +250,7 @@ export class LessonsService {
     lessonsQb: SelectQueryBuilder<LessonEntity>,
     { page, pageSize, }: Partial<IPaginationFilters>,
   ): Promise<IGenericListPayloadResponse<ILessonListItemModel>> {
-    lessonsQb.orderBy(EFFECTIVE_DATE, 'ASC');
+    lessonsQb.orderBy('ls.date', 'ASC');
     if (page && pageSize !== undefined) {
       lessonsQb
         .skip((page - 1) * pageSize)
@@ -270,7 +267,7 @@ export class LessonsService {
   /** Unpaginated list ordered by date, for calendars */
   async getList(lessonsQb: SelectQueryBuilder<LessonEntity>): Promise<ILessonListItemModel[]> {
     const lessonsData = await lessonsQb
-      .orderBy(EFFECTIVE_DATE, 'ASC')
+      .orderBy('ls.date', 'ASC')
       .getMany();
     return await this.toListItems(lessonsData);
   }

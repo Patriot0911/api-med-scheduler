@@ -88,8 +88,8 @@ export class LessonsGroupsService {
       .createQueryBuilder('ls')
       .select('ls.lessonGroupId', 'lessonGroupId')
       .addSelect('COUNT(*)::int', 'lessonsCount')
-      .addSelect('MIN(COALESCE(ls.delayedDate, ls.date))', 'firstLessonDate')
-      .addSelect('MAX(COALESCE(ls.delayedDate, ls.date))', 'lastLessonDate')
+      .addSelect('MIN(ls.date)', 'firstLessonDate')
+      .addSelect('MAX(ls.date)', 'lastLessonDate')
       .where('ls.lessonGroupId IN (:...lessonGroupIds)', { lessonGroupIds, })
       .groupBy('ls.lessonGroupId')
       .getRawMany<{ lessonGroupId: string } & ILessonGroupStats>();

@@ -17,9 +17,6 @@ export class LessonEntity {
   @Column({ type: 'int', })
   duration: number;
 
-  @Column({ type: 'timestamptz', nullable: true, })
-  delayedDate: Date;
-
   @Column()
   name: string;
 

@@ -6,7 +6,6 @@ export interface ILessonItemModel {
   name: string;
   date: Date;
   duration: number;
-  delayedDate: Date | null;
   note: string | null;
   semesterId: string | null;
   lessonGroupId: string | null;
