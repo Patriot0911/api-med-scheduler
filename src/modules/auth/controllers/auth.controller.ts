@@ -52,9 +52,9 @@ export class AuthController {
 
   @Post('logout')
   @ApiBearerAuth()
-  @UseGuards(JwtAccessGuard)
+  @UseGuards(JwtRefreshGuard)
   async logout(@Req() request): Promise<boolean> {
-    const { sub } = <IAccessTokenPayload> request.user;
+    const { sub } = <IRefreshTokenPayloadWithToken> request.user;
     return await this.authService.logout(sub);
   }
 

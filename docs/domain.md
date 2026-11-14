@@ -85,7 +85,7 @@ canManageRole(A, R) = rank(A) > R.rolePriority ∧ (isAdmin(A) ∨ R.permissions
 - `POST /auth/login` → `{ tokens: { accessToken, refreshToken }, user }`. Access-токен містить `{ use: 'access', sub, permissions, roles }`, refresh — `{ use: 'refresh', sub }`. Секрети різні.
 - `user` (у login, refresh і `GET /auth/me`) містить профілі `teacher` / `student`. `teacher.headOfDepartmentId` — кафедра, яку користувач очолює, або `null`: за ним фронт вирішує, чи показувати заняття кафедри.
 - `POST /auth/refresh` з `Authorization: Bearer <refreshToken>`: токен звіряється з хешем у `users.refreshToken`, видається нова пара (ротація). Один активний refresh на користувача: новий логін розлогінює інші сесії.
-- `POST /auth/logout` обнуляє `refreshToken`.
+- `POST /auth/logout` з `Authorization: Bearer <refreshToken>` (як refresh, а не access) обнуляє `refreshToken`. Так фронт завершує й неактивні збережені акаунти, для яких у нього немає access-токена; застарілий refresh дає 401 і не зачіпає новішу сесію.
 - `PUT /auth/me` — зміна email вимагає `currentPassword` (email — це логін). `PUT /auth/me/password` завжди вимагає поточний пароль.
 - Скидання пароля без пошти: адмін викликає `POST /users/:id/password-reset-token` і отримує `selector.validator` + `expiresAt`, передає користувачу, той викликає `POST /auth/reset-password`. Попередні невикористані токени видаляються; validator зберігається як argon2-хеш; успішне скидання обнуляє refresh-токен.
 - Адмін може створити користувача без пароля: генерується випадковий, і користувач задає свій через токен скидання.
@@ -204,7 +204,7 @@ canManageRole(A, R) = rank(A) > R.rolePriority ∧ (isAdmin(A) ∨ R.permissions
 
 Усі шляхи з префіксом `/api`. 🔓 — без токена, 🔑 — лише токен, інакше — перелічені дозволи (`admin` проходить завжди). Зміни users і roles додатково перевіряються ієрархією ролей.
 
-**auth** — `POST login` 🔓 · `POST register` 🔓 (feature flag) · `POST refresh` (refresh-токен) · `POST logout` 🔑 · `GET/PUT me` 🔑 · `PUT me/password` 🔑 · `POST reset-password` 🔓
+**auth** — `POST login` 🔓 · `POST register` 🔓 (feature flag) · `POST refresh` (refresh-токен) · `POST logout` (refresh-токен) · `GET/PUT me` 🔑 · `PUT me/password` 🔑 · `POST reset-password` 🔓
 
 **users** — `GET /`, `GET /:id` (read_users) · `POST /`, `PUT /:id`, `POST /:id/password-reset-token`, `POST|PUT|DELETE /:id/teacher`, `POST|PUT|DELETE /:id/student` (manage_users). `PUT` профілю = upsert. Фільтри списку: `search`, `roleIds[]`, `profiles[]` (`teacher` | `student` | `none`).
 
