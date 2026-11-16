@@ -7,7 +7,7 @@ REST API розкладу занять медичного університет
 
 ## Git
 
-- **Не комітити й не пушити без прямого прохання.** Зміни лишаються в робочому дереві, доки користувач сам не попросить коміт. Дозвіл на один коміт не поширюється на наступні.
+- **ШІ ніколи не комітить і не пушить** — навіть на прохання (тоді лише текст повідомлення коміту). Зміни лишаються в робочому дереві, коміти робить користувач. Деталі — `.claude/rules/git.md`.
 
 ## Стек
 
@@ -31,6 +31,12 @@ npm run seed:run                # build + створити роль Admin і к�
 - Swagger: `http://localhost:<APP_PORT>/api/docs` (лише коли `APP_ENV !== 'production'`).
 - Тестів немає: jest-конфіг у `package.json` є, але `*.spec.ts` і скриптів `test` нема (README застарів).
 - Усі скрипти TypeORM працюють із **зібраним** `dist/` (`data-source.ts` дивиться в `dist/**/*.entity.js` і `dist/database/migrations/*.js`), тому кожен з них спершу робить `npm run build`.
+- **Користувач тримає `start:dev` запущеним; `build` і скрипти TypeORM його ламають.** Типи — `npx tsc --noEmit -p tsconfig.json`; `lint` / `format` масово правлять увесь репозиторій. Див. `.claude/rules/commands.md`.
+
+## Скіли й правила
+
+Процедури — `.claude/skills/`. Переносні (NestJS + TypeORM, без домену): `nest-module-anatomy`, `nest-dto-validation`, `nest-authorization`, `typeorm-migrations`. Доменні: `scheduler-lessons`, `scheduler-accounts`. Наскрізні: `api-contract-change` (синхронізація з фронтом), `api-rebuild-plan` (рішення дня нуль і порядок побудови).
+Жорсткі обмеження — `.claude/rules/`: `git`, `commands` (завжди), `code-style`, `controllers`, `dto`, `persistence`, `domain` (за шляхами).
 
 ## Структура
 
@@ -69,12 +75,7 @@ modules/<name>/
   services/<name>.service.ts
 ```
 
-- **Models ↔ DTO.** Для кожного вхідного/вихідного контракту є інтерфейс у `models/` (`ICreateRoleModel`, `IRoleItemModel`). DTO-клас реалізує цей інтерфейс (`class EditRoleRequestDto implements IEditRoleModel`). Сервіси приймають і повертають **інтерфейси**, а не DTO чи entity.
-- **Create DTO наслідує Edit DTO**, якщо поля збігаються: `class CreateRoleRequestDto extends EditRoleRequestDto implements ICreateRoleModel {}`.
-- **Моделі відповідей**: `I<Entity>ItemModel` (одна сутність), `I<Entity>ListItemModel` (рядок списку, часто `extends ItemModel`), `I<Entity>DictionaryItem(Model)` (`{ id, name }` для селектів).
-- **Mapper** має методи `entityToItem`, `entityToListItem`, `entityToDictionaryItem`. Контролер ніколи не повертає entity напряму.
-- **Сервіс** інжектить репозиторії через `@InjectRepository(XEntity)`. Чужі entity, з якими працює сервіс, реєструються в `TypeOrmModule.forFeature([...])` його модуля (так зроблено скрізь, а не через імпорт сервісу іншого модуля).
-- **Dictionaries**: кожен сервіс, у якого є довідник, має `get<Entity>Dictionary()`. Ендпоінти довідників зібрані в `DictionariesModule` (`/api/dictionaries/*`), а не в модулі сутності.
+Інтерфейси в `models/` ↔ DTO-класи, що їх `implements`; сервіси працюють з інтерфейсами; mapper `entityToItem / ListItem / DictionaryItem`; контролер не повертає entity; довідники — у `DictionariesModule`. Повністю — скіл `nest-module-anatomy`.
 
 ## Конвенції API
 
@@ -82,7 +83,7 @@ modules/<name>/
 - **Обгортка відповіді.** `ResponseInterceptor` загортає все в `{ status: true, data }`. Помилки: `{ status: false, message }`, де `message` — рядок **або масив рядків** (помилки class-validator). Не загортай відповідь вручну.
 - **Списки**: `{ items, meta: { count } }` (`IGenericListPayloadResponse<T>`). Пагінація: query `page` (від 1) і `pageSize` (0–100) з `@Type(() => Number)`; пошук `search` через `ILIKE '%…%'`. Масиви в query приймаються як повторювані ключі; для одиночного значення використовуй `@Transform(toArray)` (див. `get-users-request.dto.ts`).
 - **CRUD-повернення** (історично склалось, не уніфікуй без потреби): `POST` → створений item, `PUT` → здебільшого `boolean` (`!!result.affected`), але users / profiles / lessons повертають оновлений item; `DELETE` → видалений item.
-- **ValidationPipe** глобальний з `transform: true, whitelist: true`: поля без декораторів class-validator **мовчки відкидаються**. Кожне поле DTO потребує хоча б одного декоратора (`@IsOptional()` теж рахується). Дати — `@Type(() => Date) @IsDate()`, вкладені об'єкти — `@ValidateNested() @Type(() => Dto)`.
+- **ValidationPipe** глобальний з `transform: true, whitelist: true`: поля без декораторів class-validator **мовчки відкидаються**. Правила DTO — скіл `nest-dto-validation`.
 - **Поточний користувач**: новий код — `@CurrentUser() { sub }: IAccessTokenPayload`; старий код читає `request.user` через `@Req()`. `sub` — це `users.id`, **не** id профілю викладача/студента.
 
 ### Авторизація
@@ -109,33 +110,17 @@ modules/<name>/
 
 ### Додавання нового дозволу
 
-Postgres-enum `roles_permissions_enum` не оновлюється сам. Потрібно змінити **чотири** місця:
-
-1. `src/shared/models/permission.enum.ts`
-2. Міграцію, що перестворює тип (патерн rename → create → `ALTER COLUMN ... USING` → drop old, див. `1785800000005-simplify-lesson-access.ts`). Не використовуй `ALTER TYPE ... ADD VALUE`: нове значення не можна використати в тій самій транзакції, а видалити значення з enum так узагалі неможливо. У проєкті прийнятий саме патерн із перестворенням типу (коміт `0908603`).
-3. Фронт: `front-med-scheduler/src/interfaces/auth/permission.ts`
-4. Фронт: підпис у `front-med-scheduler/src/configs/permissions.config.ts`
+Чотири місця: enum, міграція з перестворенням `roles_permissions_enum` (не `ADD VALUE`, коміт `0908603`), фронт `permission.ts` і `permissions.config.ts`. Покроково — скіл `scheduler-accounts`.
 
 ## База даних і міграції
 
-- Таблиці: `snake_case` у множині (`users`, `student_groups`, `teacher_lesson`, `lessons_group` — є винятки). Колонки нових сутностей — `snake_case` через `@Column({ name: 'department_id' })` з camelCase-властивістю. Старі таблиці (`users`, `roles`, `semesters`) мають camelCase-колонки (`"fullName"`, `"rolePriority"`), тож у raw SQL їх треба брати в лапки.
-- PK скрізь `@PrimaryGeneratedColumn('uuid')`. FK зберігається і як relation, і як окрема колонка (`department` + `departmentId`).
-- Час — `timestamptz`; довгий текст — `type: 'text'`.
-- Іменування міграцій: `<timestamp>-<kebab-name>.ts`, клас `<PascalName><timestamp>`, `name = '<PascalName><timestamp>'`. Останні міграції мають «ручні» таймстемпи `17858000000NN` — нова міграція має бути **більшою** за останню.
-- Ручні міграції пишуться raw SQL через `queryRunner.query`, з явними іменами обмежень (`FK_<table>_<column>`, `UQ_...`, `IDX_...`), коментарем-поясненням угорі, міграцією даних для наявних рядків і повноцінним `down()`.
-- **`synchronize: true` поза production** (`app.module.ts`) і `migrationsRun: true`. Наслідки:
-  - dev-сервер сам підганяє схему під entity, тому `migration:generate` по такій БД може дати порожній diff — генеруй по БД, де застосовані лише міграції;
-  - зміна entity без міграції «працює» локально, але зламає production. Кожна зміна entity потребує міграції.
+- **`synchronize: true` поза production** (`app.module.ts`) і `migrationsRun: true`: dev-сервер сам підганяє схему й застосовує міграції. Тому зміна entity без міграції «працює» локально, але ламає production, `migration:generate` по dev-БД може дати порожній diff, а міграції мають бути ідемпотентними.
+- Змішані конвенції колонок: нові — snake_case, старі `users` / `roles` / `semesters` — camelCase (у raw SQL у лапках). Останні міграції — ручна серія таймстемпів `17858000000NN`.
+- Правила entity й міграцій — `.claude/rules/persistence.md`, процедура — скіл `typeorm-migrations`.
 
 ## Стиль коду
 
-- Prettier: `singleQuote`, `trailingComma: all`. Старі файли мають подвійні лапки — у нових файлах використовуй одинарні, масово не переформатовуй.
-- Характерна звичка: кома після останнього елемента навіть в однорядкових об'єктах: `{ where: { id, }, }`.
-- Імпорти між модулями — абсолютні від `src/` (`'src/modules/auth/guards/permission.guard'`), всередині модуля — відносні.
-- Методи сервісів `async` і повертають явний тип `Promise<IModel>`. `findOneOrFail` — для «має існувати»: `AllExceptionsFilter` перетворює `EntityNotFoundError` на 404 `Not found`. `findOne` + власний виняток — коли потрібне конкретне повідомлення.
-- Винятки Nest (`BadRequestException`, `ForbiddenException`, `NotFoundException`) з англійським повідомленням для кінцевого користувача.
-- **Коментарі — лише ситуативно.** Елементарний код (прості методи, DTO, моделі, очевидні перевірки) не коментуємо взагалі, навіть JSDoc. Коментар доречний тільки як опис справді складної логіки або неочевидного бізнес-правила (`/** A head who leaves the department stops being its head */`). Не коментуй те, що видно з назв. Наявні в коді рясні коментарі — не зразок для нового коду.
-- `any` дозволено eslint, але в нових сервісах його немає — не додавай.
+`.claude/rules/code-style.md`: одинарні лапки й кома після останнього елемента навіть в однорядкових об'єктах, абсолютні імпорти між модулями, явні `Promise<IModel>`, без `any`, **коментарі лише ситуативно** (нуль за замовчуванням, рясні коментарі в коді — не зразок).
 
 ## Конфігурація (.env)
 
