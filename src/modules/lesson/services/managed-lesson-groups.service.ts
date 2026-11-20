@@ -1,7 +1,10 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { LessonsGroupEntity } from '../entities/lessons-group.entity';
+import { LessonEntity } from '../entities/lesson.entity';
+import { LessonScope } from '../models/lesson-scope.enum';
+import { IUsableLessonGroupListItemModel } from '../models/lesson-groups/usable-lesson-group-list-item.model';
 import { IGenericListPayloadResponse } from 'src/shared/models/generic-list-payload.response';
 import { IGetLessonGroupsFiltersModel } from '../models/lesson-groups/get-lesson-groups-filter.model';
 import { ILessonGroupListItemModel } from '../models/lesson-groups/lesson-group-list-item.model';
@@ -25,6 +28,8 @@ export class ManagedLessonGroupsService {
   constructor(
     @InjectRepository(LessonsGroupEntity)
     private lessonGroupsRepository: Repository<LessonsGroupEntity>,
+    @InjectRepository(LessonEntity)
+    private lessonsRepository: Repository<LessonEntity>,
     private readonly lessonsGroupsService: LessonsGroupsService,
     private readonly managedLessonsService: ManagedLessonsService,
     private readonly lessonAccessService: LessonAccessService,
@@ -35,10 +40,14 @@ export class ManagedLessonGroupsService {
     return await this.lessonsGroupsService.getAll(params);
   }
 
-  async getUsablePage(params: IGetLessonGroupsFiltersModel, actor: ILessonActorModel): Promise<IGenericListPayloadResponse<ILessonGroupListItemModel>> {
-    return await this.lessonsGroupsService.getAll(params, (lessonGroupsQb) => {
+  async getUsablePage(params: IGetLessonGroupsFiltersModel, actor: ILessonActorModel): Promise<IGenericListPayloadResponse<IUsableLessonGroupListItemModel>> {
+    const page = await this.lessonsGroupsService.getAll(params, (lessonGroupsQb) => {
       this.lessonAccessService.applyUsableGroups(lessonGroupsQb, 'lsgroups', actor);
     });
+    return {
+      ...page,
+      items: page.items.map((group) => ({ ...group, canManageLessons: this.lessonAccessService.canManageGroupLessons(actor, group), })),
+    };
   }
 
   /** The actor's own groups (they created them), for selects */
@@ -101,6 +110,23 @@ export class ManagedLessonGroupsService {
     this.lessonAccessService.assertCanUseGroup(actor, await this.findGroup(lessonGroupId));
     await this.managedLessonsService.getEditableLessonOrFail(lessonId, actor);
     return await this.lessonsGroupsService.assignLessonToGroup(lessonGroupId, lessonId);
+  }
+
+  /** Moves only lessons the actor teaches, from another group or none */
+  async assignLessonsToGroup(lessonGroupId: string, lessonIds: string[], actor: ILessonActorModel): Promise<number> {
+    this.lessonAccessService.assertCanManageGroupLessons(actor, await this.findGroup(lessonGroupId));
+    const ids = [...new Set(lessonIds)];
+    const taughtQb = this.lessonsRepository.createQueryBuilder('ls').where('ls.id IN (:...ids)', { ids, });
+    const taughtCount = await this.lessonAccessService.applyScope(taughtQb, actor, [LessonScope.TEACHING]).getCount();
+    if (taughtCount !== ids.length) {
+      throw new ForbiddenException('You can add to the group only existing lessons you teach');
+    }
+    return await this.lessonsGroupsService.assignLessonsToGroup(lessonGroupId, ids);
+  }
+
+  async removeLessonsFromGroup(lessonGroupId: string, lessonIds: string[], actor: ILessonActorModel): Promise<number> {
+    this.lessonAccessService.assertCanManageGroupLessons(actor, await this.findGroup(lessonGroupId));
+    return await this.lessonsGroupsService.removeLessonsFromGroup(lessonGroupId, lessonIds);
   }
 
   async generateLessonSeries(data: IGenerateLessonSeriesModel, actor: ILessonActorModel): Promise<ILessonItemModel[]> {

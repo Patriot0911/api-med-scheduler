@@ -167,10 +167,11 @@ canManageRole(A, R) = rank(A) > R.rolePriority ∧ (isAdmin(A) ∨ R.permissions
 
 | Дія | Хто може (домен викладачів) |
 |---|---|
-| Бачити список | Будь-хто з токеном. `GET /lessons-groups/usable` — лише ті, куди я можу класти заняття (`{ id, name }[]` для селекта; `LessonAccessService.applyUsableGroups`); `GET /lessons-groups/usable/list` — ті самі групи сторінками, у форматі `GET /lessons-groups/list` (список викладача на `/dashboard/teaching`) |
+| Бачити список | Будь-хто з токеном. `GET /lessons-groups/usable` — лише ті, куди я можу класти заняття (`{ id, name }[]` для селекта; `LessonAccessService.applyUsableGroups`); `GET /lessons-groups/usable/list` — ті самі групи сторінками, у форматі `GET /lessons-groups/list` з прапорцем `canManageLessons` (список викладача на `/dashboard/teaching`) |
 | Створити | Викладач; кафедра — жодна або власна. Автор записується в `createdByTeacherId` |
 | Покласти в групу заняття, згенерувати серію в ній | Автор групи або член її кафедри (і заняття має бути доступне для редагування) |
 | Перейменувати / видалити | Автор групи або завідувач її кафедри |
+| Додати наявні заняття, вийняти заняття з групи | Лише автор групи (`canManageGroupLessons`; завідувач кафедри — ні). Вийняти можна будь-яке заняття групи, додати — лише ті, де я серед викладачів (зокрема з іншої групи: заняття переходить у мою) |
 
 ### Шари сервісів
 
@@ -194,6 +195,8 @@ canManageRole(A, R) = rank(A) > R.rolePriority ∧ (isAdmin(A) ∨ R.permissions
 - Обидва ендпоінти мають адмін-аналоги в `/admin/lessons-groups`.
 
 ### Керування групою (адмінка)
+
+Викладацькі аналоги `PUT /lessons-groups/:id/lessons` і `POST /lessons-groups/:id/lessons/remove` мають той самий формат `{ lessonIds }` і ті самі відповіді, але дозволені лише автору групи. Для додавання кожне заняття має існувати й мати мене серед викладачів, інакше 403 і нічого не змінюється. Видалити заняття разом із групою викладач не може.
 
 - `DELETE /admin/lessons-groups/:id?withLessons=true` — разом із заняттями групи (в одній транзакції); без параметра заняття лишаються без групи.
 - `PUT /admin/lessons-groups/:id/lessons` `{ lessonIds }` (1–200) — наявні заняття в групу, зокрема з іншої групи; усі мають існувати (інакше 400, нічого не змінюється). Відповідь — кількість.
@@ -220,7 +223,7 @@ canManageRole(A, R) = rank(A) > R.rolePriority ∧ (isAdmin(A) ∨ R.permissions
 
 **lessons** (домен викладачів) — `GET list`, `GET list/:id` 🔓/🔑 (з урахуванням видимості; фільтри й пагінація — див. [Фільтри списків занять](#фільтри-списків-занять)) · `GET my` 🔑 (`scope`, ті самі фільтри) · `POST /`, `PATCH /:id`, `DELETE /:id` 🔑 (вирішують правила `LessonAccessService`)
 
-**lessons-groups** (домен викладачів) — усе 🔑: `GET list`, `GET my`, `GET usable`, `GET usable/list`, `GET list/:id`, `POST /:groupId/lessons`, `POST /`, `POST with-lessons`, `POST generate-series`, `PUT /:id`, `DELETE /:id`, `PUT /:groupId/lessons/:lessonId`
+**lessons-groups** (домен викладачів) — усе 🔑: `GET list`, `GET my`, `GET usable`, `GET usable/list`, `GET list/:id`, `POST /:groupId/lessons`, `POST /`, `POST with-lessons`, `POST generate-series`, `PUT /:id`, `DELETE /:id`, `PUT /:groupId/lessons/:lessonId`, `PUT /:groupId/lessons`, `POST /:groupId/lessons/remove`
 
 **admin/lessons** — `GET /`, `GET /:id` (read/manage_lessons) · `POST /`, `PATCH /:id`, `DELETE /:id`, `POST delete` (manage_lessons)
 

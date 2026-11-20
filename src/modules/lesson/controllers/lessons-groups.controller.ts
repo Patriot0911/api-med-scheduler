@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAccessGuard } from 'src/modules/auth/guards/access-refresh.guard';
 import { IGenericListPayloadResponse } from 'src/shared/models/generic-list-payload.response';
@@ -8,6 +8,8 @@ import { EditLessonGroupRequestDto } from '../dto/lesson-groups/edit-lesson-grou
 import { GenerateLessonSeriesRequestDto } from '../dto/lesson-groups/generate-lesson-series-request.dto';
 import { AddLessonsToGroupRequestDto, CreateLessonGroupWithLessonsRequestDto } from '../dto/lesson-groups/create-lesson-group-with-lessons-request.dto';
 import { ILessonGroupListItemModel } from '../models/lesson-groups/lesson-group-list-item.model';
+import { IUsableLessonGroupListItemModel } from '../models/lesson-groups/usable-lesson-group-list-item.model';
+import { LessonIdsRequestDto } from '../dto/lessons/lesson-ids-request.dto';
 import { ILessonGroupItemModel } from '../models/lesson-groups/lesson-group-item.model';
 import { ILessonGroupWithLessonsModel } from '../models/lesson-groups/lesson-group-with-lessons.model';
 import { ILessonItemModel } from '../models/lessons/lesson-item.model';
@@ -45,7 +47,7 @@ export class LessonsGroupsController {
   async getUsableLessonGroupsPage(
     @Query() params: GetLessonGroupsRequestDto,
     @LessonActor() actor: ILessonActorModel,
-  ): Promise<IGenericListPayloadResponse<ILessonGroupListItemModel>> {
+  ): Promise<IGenericListPayloadResponse<IUsableLessonGroupListItemModel>> {
     return await this.managedLessonGroupsService.getUsablePage(params, actor);
   }
 
@@ -111,5 +113,23 @@ export class LessonsGroupsController {
     @LessonActor() actor: ILessonActorModel,
   ): Promise<boolean> {
     return await this.managedLessonGroupsService.assignLessonToGroup(lessonGroupId, lessonId, actor);
+  }
+
+  @Put(':lessonGroupId/lessons')
+  async assignLessonsToGroup(
+    @Param('lessonGroupId', ParseUUIDPipe) lessonGroupId: string,
+    @Body() { lessonIds, }: LessonIdsRequestDto,
+    @LessonActor() actor: ILessonActorModel,
+  ): Promise<number> {
+    return await this.managedLessonGroupsService.assignLessonsToGroup(lessonGroupId, lessonIds, actor);
+  }
+
+  @Post(':lessonGroupId/lessons/remove')
+  async removeLessonsFromGroup(
+    @Param('lessonGroupId', ParseUUIDPipe) lessonGroupId: string,
+    @Body() { lessonIds, }: LessonIdsRequestDto,
+    @LessonActor() actor: ILessonActorModel,
+  ): Promise<number> {
+    return await this.managedLessonGroupsService.removeLessonsFromGroup(lessonGroupId, lessonIds, actor);
   }
 }

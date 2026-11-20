@@ -215,6 +215,11 @@ export class LessonAccessService {
       || (!!actor.headOfDepartmentId && group.departmentId === actor.headOfDepartmentId);
   }
 
+  /** Adding existing lessons to a group and taking them out: only the group's creator, not the head of its department */
+  canManageGroupLessons(actor: ILessonActorModel, group: TLessonGroupOwnership): boolean {
+    return !!actor.teacherId && group.createdByTeacherId === actor.teacherId;
+  }
+
   assertCanUseGroup(actor: ILessonActorModel, group: TLessonGroupOwnership): void {
     if (!this.canUseGroup(actor, group)) {
       throw new ForbiddenException('You do not have access to this lesson group');
@@ -224,6 +229,12 @@ export class LessonAccessService {
   assertCanManageGroup(actor: ILessonActorModel, group: TLessonGroupOwnership): void {
     if (!this.canManageGroup(actor, group)) {
       throw new ForbiddenException('You do not have access to manage this lesson group');
+    }
+  }
+
+  assertCanManageGroupLessons(actor: ILessonActorModel, group: TLessonGroupOwnership): void {
+    if (!this.canManageGroupLessons(actor, group)) {
+      throw new ForbiddenException('Only the creator of the lesson group can add or take out its lessons');
     }
   }
 }
