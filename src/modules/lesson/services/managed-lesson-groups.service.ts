@@ -35,6 +35,12 @@ export class ManagedLessonGroupsService {
     return await this.lessonsGroupsService.getAll(params);
   }
 
+  async getUsablePage(params: IGetLessonGroupsFiltersModel, actor: ILessonActorModel): Promise<IGenericListPayloadResponse<ILessonGroupListItemModel>> {
+    return await this.lessonsGroupsService.getAll(params, (lessonGroupsQb) => {
+      this.lessonAccessService.applyUsableGroups(lessonGroupsQb, 'lsgroups', actor);
+    });
+  }
+
   /** The actor's own groups (they created them), for selects */
   async getOwn(actor: ILessonActorModel): Promise<ILessonGroupDictionaryItem[]> {
     if (!actor.teacherId) {

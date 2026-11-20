@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessonsGroupEntity } from '../entities/lessons-group.entity';
-import { In, Repository } from 'typeorm';
+import { In, Repository, SelectQueryBuilder } from 'typeorm';
 import { IGetLessonGroupsFiltersModel } from '../models/lesson-groups/get-lesson-groups-filter.model';
 import { ILessonGroupStats, LessonGroupsMapper } from '../mappers/lesson-groups.mapper';
 import { IGenericListPayloadResponse } from 'src/shared/models/generic-list-payload.response';
@@ -50,7 +50,10 @@ export class LessonsGroupsService {
     );
   }
 
-  async getAll(params: IGetLessonGroupsFiltersModel): Promise<IGenericListPayloadResponse<ILessonGroupListItemModel>> {
+  async getAll(
+    params: IGetLessonGroupsFiltersModel,
+    restrict?: (lessonGroupsQb: SelectQueryBuilder<LessonsGroupEntity>) => void,
+  ): Promise<IGenericListPayloadResponse<ILessonGroupListItemModel>> {
     const { page, pageSize, search, departmentId, } = params;
     const lessonGroupsQb = this.lessonGroupsRepository
       .createQueryBuilder('lsgroups')
@@ -68,6 +71,7 @@ export class LessonsGroupsService {
     if (departmentId) {
       lessonGroupsQb.andWhere('lsgroups.departmentId = :departmentId', { departmentId, });
     }
+    restrict?.(lessonGroupsQb);
 
     const [lsGroupsData, total] = await lessonGroupsQb.getManyAndCount();
     const statsById = await this.getStats(lsGroupsData.map((group) => group.id));

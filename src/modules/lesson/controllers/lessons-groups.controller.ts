@@ -41,6 +41,14 @@ export class LessonsGroupsController {
     return await this.managedLessonGroupsService.getUsable(actor);
   }
 
+  @Get('usable/list')
+  async getUsableLessonGroupsPage(
+    @Query() params: GetLessonGroupsRequestDto,
+    @LessonActor() actor: ILessonActorModel,
+  ): Promise<IGenericListPayloadResponse<ILessonGroupListItemModel>> {
+    return await this.managedLessonGroupsService.getUsablePage(params, actor);
+  }
+
   @Get('list/:lessonGroupId')
   async getLessonGroup(@Param('lessonGroupId') lessonGroupId: string): Promise<ILessonGroupItemModel> {
     return await this.managedLessonGroupsService.getById(lessonGroupId);

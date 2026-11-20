@@ -167,7 +167,7 @@ canManageRole(A, R) = rank(A) > R.rolePriority ∧ (isAdmin(A) ∨ R.permissions
 
 | Дія | Хто може (домен викладачів) |
 |---|---|
-| Бачити список | Будь-хто з токеном. `GET /lessons-groups/usable` — лише ті, куди я можу класти заняття (`{ id, name }[]` для селекта; `LessonAccessService.applyUsableGroups`) |
+| Бачити список | Будь-хто з токеном. `GET /lessons-groups/usable` — лише ті, куди я можу класти заняття (`{ id, name }[]` для селекта; `LessonAccessService.applyUsableGroups`); `GET /lessons-groups/usable/list` — ті самі групи сторінками, у форматі `GET /lessons-groups/list` (список викладача на `/dashboard/teaching`) |
 | Створити | Викладач; кафедра — жодна або власна. Автор записується в `createdByTeacherId` |
 | Покласти в групу заняття, згенерувати серію в ній | Автор групи або член її кафедри (і заняття має бути доступне для редагування) |
 | Перейменувати / видалити | Автор групи або завідувач її кафедри |
@@ -183,7 +183,7 @@ canManageRole(A, R) = rank(A) > R.rolePriority ∧ (isAdmin(A) ∨ R.permissions
 
 Нова дія над заняттями: правило → `LessonAccessService`, логіка → `LessonsService`, зв'язка → `Managed*Service`, ендпоінт → контролер з `@LessonActor()`. Адмін-варіант — в `admin-*.controller.ts` поверх базового сервісу.
 
-Список груп занять (`GET /lessons-groups/list`, `GET /admin/lessons-groups`) відсортований за назвою; кожен рядок має `departmentName`, `createdByTeacherName`, `lessonsCount` і період `firstLessonDate`–`lastLessonDate` (найраніша й найпізніша `date` її занять).
+Список груп занять (`GET /lessons-groups/list`, `GET /lessons-groups/usable/list`, `GET /admin/lessons-groups`) відсортований за назвою; кожен рядок має `departmentName`, `createdByTeacherName`, `lessonsCount` і період `firstLessonDate`–`lastLessonDate` (найраніша й найпізніша `date` її занять).
 
 ### Серії занять
 
@@ -220,7 +220,7 @@ canManageRole(A, R) = rank(A) > R.rolePriority ∧ (isAdmin(A) ∨ R.permissions
 
 **lessons** (домен викладачів) — `GET list`, `GET list/:id` 🔓/🔑 (з урахуванням видимості; фільтри й пагінація — див. [Фільтри списків занять](#фільтри-списків-занять)) · `GET my` 🔑 (`scope`, ті самі фільтри) · `POST /`, `PATCH /:id`, `DELETE /:id` 🔑 (вирішують правила `LessonAccessService`)
 
-**lessons-groups** (домен викладачів) — усе 🔑: `GET list`, `GET my`, `GET usable`, `GET list/:id`, `POST /:groupId/lessons`, `POST /`, `POST with-lessons`, `POST generate-series`, `PUT /:id`, `DELETE /:id`, `PUT /:groupId/lessons/:lessonId`
+**lessons-groups** (домен викладачів) — усе 🔑: `GET list`, `GET my`, `GET usable`, `GET usable/list`, `GET list/:id`, `POST /:groupId/lessons`, `POST /`, `POST with-lessons`, `POST generate-series`, `PUT /:id`, `DELETE /:id`, `PUT /:groupId/lessons/:lessonId`
 
 **admin/lessons** — `GET /`, `GET /:id` (read/manage_lessons) · `POST /`, `PATCH /:id`, `DELETE /:id`, `POST delete` (manage_lessons)
 
