@@ -25,11 +25,11 @@ import { HealthModule } from './modules/health/health.module';
     HealthModule,
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, dbConfig, authConfig, featuresConfig],
+      load: [appConfig, dbConfig, authConfig, featuresConfig,],
     }),
     TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
+      imports: [ConfigModule,],
+      inject: [ConfigService,],
       useFactory: (config: ConfigService) => ({
         type: 'postgres',
         host: config.get('database.host'),
@@ -41,7 +41,7 @@ import { HealthModule } from './modules/health/health.module';
         autoLoadEntities: true,
         synchronize: config.get('app.env') !== 'production',
 
-        migrations: ['dist/database/migrations/*.js'],
+        migrations: ['dist/database/migrations/*.js',],
         migrationsRun: config.get<boolean>('database.migrationsRun'),
       }),
     }),

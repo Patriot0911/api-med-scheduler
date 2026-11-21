@@ -19,8 +19,8 @@ NestJS 11 · TypeORM 0.3 · PostgreSQL 16 · Passport JWT (access + refresh) · 
 docker compose up -d            # Postgres (порт і креди з .env: DB_PORT, DB_USER, DB_PASSWORD, DB_NAME)
 npm run start:dev               # dev-сервер з watch
 npm run build                   # nest build → dist/
-npm run lint                    # eslint --fix
-npm run format                  # prettier --write
+npm run lint                    # eslint --fix по всьому репозиторію
+npm run lint:check              # eslint без виправлень (для CI)
 
 npm run migration:generate -- src/database/migrations/<kebab-name>   # build + генерація з різниці entity ↔ БД
 npm run migration:run           # build + застосувати
@@ -31,7 +31,7 @@ npm run seed:run                # build + створити роль Admin і к�
 - Swagger: `http://localhost:<APP_PORT>/api/docs` (лише коли `APP_ENV !== 'production'`).
 - Тестів немає: jest-конфіг у `package.json` є, але `*.spec.ts` і скриптів `test` нема (README застарів).
 - Усі скрипти TypeORM працюють із **зібраним** `dist/` (`data-source.ts` дивиться в `dist/**/*.entity.js` і `dist/database/migrations/*.js`), тому кожен з них спершу робить `npm run build`.
-- **Користувач тримає `start:dev` запущеним; `build` і скрипти TypeORM його ламають.** Типи — `npx tsc --noEmit -p tsconfig.json`; `lint` / `format` масово правлять увесь репозиторій. Див. `.claude/rules/commands.md`.
+- **Користувач тримає `start:dev` запущеним; `build` і скрипти TypeORM його ламають.** Типи — `npx tsc --noEmit -p tsconfig.json`; `lint` масово правлять увесь репозиторій. Див. `.claude/rules/commands.md`.
 
 ## Docker
 
@@ -125,6 +125,8 @@ modules/<name>/
 ## Стиль коду
 
 `.claude/rules/code-style.md`: одинарні лапки й кома після останнього елемента навіть в однорядкових об'єктах, абсолютні імпорти між модулями, явні `Promise<IModel>`, без `any`, **коментарі лише ситуативно** (нуль за замовчуванням, рясні коментарі в коді — не зразок).
+
+Форматування перевіряє ESLint (`@stylistic` у `eslint.config.mjs`): одинарні лапки, кома після останнього елемента в об'єктах і масивах навіть в однорядкових (в імпортах, параметрах і викликах — лише в багаторядкових), крапка з комою, відступ 2. Prettier у проєкті немає: він не вміє коми в однорядкових об'єктах. Старий код ще не відповідає правилам (подвійні лапки, коми), тож лінтуй лише змінені файли: `npx eslint <files>`.
 
 ## Конфігурація (.env)
 
