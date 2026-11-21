@@ -33,6 +33,10 @@ npm run seed:run                # build + створити роль Admin і к�
 - Усі скрипти TypeORM працюють із **зібраним** `dist/` (`data-source.ts` дивиться в `dist/**/*.entity.js` і `dist/database/migrations/*.js`), тому кожен з них спершу робить `npm run build`.
 - **Користувач тримає `start:dev` запущеним; `build` і скрипти TypeORM його ламають.** Типи — `npx tsc --noEmit -p tsconfig.json`; `lint` / `format` масово правлять увесь репозиторій. Див. `.claude/rules/commands.md`.
 
+## Docker
+
+`Dockerfile` (multi-stage, `node:22-alpine`, користувач `node`, tini) збирає образ із `APP_ENV=production`. `docker-entrypoint.sh` приймає команди: `serve` (за замовчуванням), `migrate`, `migrate:revert`, `migrate:show`, `seed`. Міграції в образі йдуть через `node node_modules/typeorm/cli.js` по скомпільованому `dist/`, без ts-node. HEALTHCHECK — `GET /api/health/ready`. `docker-compose.yml` — лише dev-Postgres.
+
 ## Скіли й правила
 
 Процедури — `.claude/skills/`. Переносні (NestJS + TypeORM, без домену): `nest-module-anatomy`, `nest-dto-validation`, `nest-authorization`, `typeorm-migrations`. Доменні: `scheduler-lessons`, `scheduler-accounts`. Наскрізні: `api-contract-change` (синхронізація з фронтом), `api-rebuild-plan` (рішення дня нуль і порядок побудови).
@@ -57,7 +61,7 @@ src/
     factories/             # @ApiGenericResponses({ [status]: Dto }) для Swagger
     models/                # Permission enum, IPaginationFilters, IGenericListPayloadResponse
   modules/
-    auth/  users/  roles/  departments/  student-groups/  semester/  lesson/  dictionaries/
+    auth/  users/  roles/  departments/  student-groups/  semester/  lesson/  dictionaries/  health/
 ```
 
 ### Анатомія модуля
@@ -126,8 +130,10 @@ modules/<name>/
 
 | Змінна | Призначення |
 |---|---|
-| `APP_ENV`, `APP_PORT` | `production` вимикає Swagger і `synchronize` |
+| `APP_ENV`, `APP_PORT` | `production` вимикає Swagger і `synchronize` (Docker-образ ставить `production` сам) |
+| `CORS_ORIGINS` | дозволені origin фронту через кому (`https://medscheduler.com`); у production обов'язкова, поза ним порожня = будь-який origin. Cookies не використовуються, `credentials` вимкнено |
 | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | БД (і для `docker-compose.yml`, і для застосунку) |
+| `DB_MIGRATIONS_RUN` | `'FALSE'` вимикає `migrationsRun` при старті; у production міграції запускає окремий контейнер (`docker run <image> migrate`) |
 | `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` | секрети токенів; при `APP_ENV=production` обов'язкові (застосунок не стартує без них), у dev — дефолтні рядки |
 | `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `PASSWORD_RESET_TTL` | тривалість: секунди або число з `s` / `m` / `h` / `d` (`15m`, `7d`), див. `config/duration.ts`. Некоректне значення зупиняє старт. Дефолти: 900 / 604800 / 86400 |
 | `FEATURE_REGISTER` | `'TRUE'` вмикає `POST /api/auth/register` |

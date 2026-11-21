@@ -8,14 +8,14 @@ import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.enableShutdownHooks();
 
   const configService = app.get(ConfigService);
 
   app.enableCors({
-    origin: '*',
+    origin: configService.get<string[] | true>('app.corsOrigins'),
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
   });
 
   if (configService.get('app.env') !== 'production') {
@@ -41,4 +41,7 @@ async function bootstrap() {
 
   await app.listen(configService.get('app.port')!);
 }
-bootstrap();
+bootstrap().catch((error: unknown) => {
+  console.error(error);
+  process.exit(1);
+});

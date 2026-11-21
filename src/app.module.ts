@@ -10,6 +10,7 @@ import { DictionariesModule } from './modules/dictionaries/dictionaries.module';
 import { SemesterModule } from './modules/semester/semester.module';
 import { LessonModule } from './modules/lesson/lesson.module';
 import { DepartmentsModule } from './modules/departments/departments.module';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { DepartmentsModule } from './modules/departments/departments.module';
     StudentGroupsModule,
     DepartmentsModule,
     DictionariesModule,
+    HealthModule,
     ConfigModule.forRoot({
       isGlobal: true,
       load: [appConfig, dbConfig, authConfig, featuresConfig],
@@ -40,7 +42,7 @@ import { DepartmentsModule } from './modules/departments/departments.module';
         synchronize: config.get('app.env') !== 'production',
 
         migrations: ['dist/database/migrations/*.js'],
-        migrationsRun: true,
+        migrationsRun: config.get<boolean>('database.migrationsRun'),
       }),
     }),
   ],

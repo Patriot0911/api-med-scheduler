@@ -229,4 +229,6 @@ canManageRole(A, R) = rank(A) > R.rolePriority ∧ (isAdmin(A) ∨ R.permissions
 
 **admin/lessons-groups** — `GET /`, `GET /:id` (read/manage_lessons) · `POST /`, `POST with-lessons`, `POST /:groupId/lessons`, `POST generate-series`, `PUT /:id`, `DELETE /:id` (`?withLessons`), `PUT /:groupId/lessons/:lessonId`, `PUT /:groupId/lessons`, `POST /:groupId/lessons/remove` (manage_lessons)
 
+**health** 🔓 — `GET /` (процес живий) · `GET ready` (є з'єднання з БД; інакше 500). Для Docker HEALTHCHECK і deploy-скрипта
+
 **dictionaries** (`{ id, name }[]`) — `permissions`, `roles` (read_roles) · `group-tags`, `group`, `semesters`, `lesson-groups`, `teachers` (`{ id, name, departmentId }`), `departments` 🔑 (фільтри занять для всіх)

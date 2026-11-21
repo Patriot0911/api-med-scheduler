@@ -1,0 +1,10 @@
+**
+!package.json
+!package-lock.json
+!tsconfig.json
+!tsconfig.build.json
+!nest-cli.json
+!src/**
+!docker-entrypoint.sh
+**/*.spec.ts
+**/.DS_Store
