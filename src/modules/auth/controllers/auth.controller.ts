@@ -1,23 +1,24 @@
-import { Body, Controller, Get, HttpStatus, Post, Put, Req, UseGuards } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
-import { RegistrationDto } from "../dto/registration.dto";
-import { LoginDto } from "../dto/login.dto";
-import { JwtRefreshGuard } from "../guards/jwt-refresh.guard";
-import { JwtAccessGuard } from "../guards/access-refresh.guard";
-import { AuthService } from "../services/auth.service";
-import { IAccessTokenPayload } from "../models/access-token-payload.model";
-import { IRefreshTokenPayloadWithToken } from "../models/refresh-token-payload.model";
-import { IUserPayload } from "../models/user-payload.model";
-import { IAuthResponse } from "../models/auth-response.model";
-import { ApiGenericResponses } from "src/shared/factories/api-generic-responses.factory";
-import { AuthResponseDto } from "../dto/auth-response.dto";
-import { UserPayloadDto } from "../dto/user-payload.dto";
+import { Body, Controller, Get, HttpStatus, Post, Put, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { RegistrationDto } from '../dto/registration.dto';
+import { LoginDto } from '../dto/login.dto';
+import { JwtRefreshGuard } from '../guards/jwt-refresh.guard';
+import { JwtAccessGuard } from '../guards/access-refresh.guard';
+import { AuthService } from '../services/auth.service';
+import type { IAccessTokenPayload } from '../models/access-token-payload.model';
+import type { IRefreshTokenPayloadWithToken } from '../models/refresh-token-payload.model';
+import { IUserPayload } from '../models/user-payload.model';
+import { IAuthResponse } from '../models/auth-response.model';
+import { ApiGenericResponses } from 'src/shared/factories/api-generic-responses.factory';
+import { AuthResponseDto } from '../dto/auth-response.dto';
+import { UserPayloadDto } from '../dto/user-payload.dto';
 import { Feature } from 'src/shared/decorator/features.decorator';
 import { FeatureGuard } from 'src/shared/guards/features.guard';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { EditMeDto } from '../dto/edit-me.dto';
 import { ChangePasswordDto } from '../dto/change-password.dto';
 import { PasswordResetService } from 'src/modules/users/services/password-reset.service';
+import { CurrentUser } from '../decorator/current-user.decorator';
 
 @ApiTags('Auth')
 @Controller('api/auth')
@@ -45,16 +46,14 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(JwtRefreshGuard)
   @ApiGenericResponses({[HttpStatus.CREATED]: AuthResponseDto,})
-  async refresh(@Req() request): Promise<IAuthResponse> {
-    const { sub, refreshToken } = <IRefreshTokenPayloadWithToken> request.user;
+  async refresh(@CurrentUser() { sub, refreshToken, }: IRefreshTokenPayloadWithToken): Promise<IAuthResponse> {
     return await this.authService.refreshToken(sub, refreshToken);
   }
 
   @Post('logout')
   @ApiBearerAuth()
   @UseGuards(JwtRefreshGuard)
-  async logout(@Req() request): Promise<boolean> {
-    const { sub } = <IRefreshTokenPayloadWithToken> request.user;
+  async logout(@CurrentUser() { sub, }: IRefreshTokenPayloadWithToken): Promise<boolean> {
     return await this.authService.logout(sub);
   }
 
@@ -62,8 +61,7 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard)
   @ApiGenericResponses({[HttpStatus.OK]: UserPayloadDto,})
-  async me(@Req() request): Promise<IUserPayload> {
-    const { sub, } = <IAccessTokenPayload> request.user;
+  async me(@CurrentUser() { sub, }: IAccessTokenPayload): Promise<IUserPayload> {
     return await this.authService.getMe(sub);
   }
 
@@ -71,16 +69,14 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard)
   @ApiGenericResponses({[HttpStatus.OK]: UserPayloadDto,})
-  async editMe(@Body() data: EditMeDto, @Req() request): Promise<IUserPayload> {
-    const { sub, } = <IAccessTokenPayload> request.user;
+  async editMe(@Body() data: EditMeDto, @CurrentUser() { sub, }: IAccessTokenPayload): Promise<IUserPayload> {
     return await this.authService.editMe(sub, data);
   }
 
   @Put('me/password')
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard)
-  async changePassword(@Body() data: ChangePasswordDto, @Req() request): Promise<boolean> {
-    const { sub, } = <IAccessTokenPayload> request.user;
+  async changePassword(@Body() data: ChangePasswordDto, @CurrentUser() { sub, }: IAccessTokenPayload): Promise<boolean> {
     return await this.authService.changePassword(sub, data);
   }
 

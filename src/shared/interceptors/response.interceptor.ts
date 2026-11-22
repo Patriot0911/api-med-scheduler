@@ -2,7 +2,7 @@ import {
   CallHandler,
   ExecutionContext,
   Injectable,
-  NestInterceptor
+  NestInterceptor,
 } from '@nestjs/common';
 import { map } from 'rxjs/operators';
 import { IGenericDataResponse } from '../models/generic-data.response';
@@ -11,10 +11,10 @@ import { IGenericDataResponse } from '../models/generic-data.response';
 export class ResponseInterceptor implements NestInterceptor {
   intercept(_: ExecutionContext, next: CallHandler) {
     return next.handle().pipe(
-      map((data) => ({
+      map((data: unknown): IGenericDataResponse<unknown> => ({
         status: true,
         data,
-      }) as IGenericDataResponse<any>)
+      })),
     );
   }
 }

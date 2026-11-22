@@ -38,7 +38,7 @@ description: Як змінювати контракт API med-scheduler так, 
 
 ## 3. Перевірка
 
-- Бекенд: `npx tsc --noEmit -p tsconfig.json` (**не** `npm run build` — ламає `nest --watch` користувача).
+- Бекенд: під час роботи `npx tsc --noEmit -p tsconfig.json`, фінально — `npm run build` (якщо працює `nest --watch` на 3001, попередь, що його може знадобитися перезапустити).
 - Фронт: `npx tsc --noEmit` у `../front-med-scheduler` (ловить і відсутні ключі перекладу).
 - Живу перевірку роби на вже запущеному dev-сервері (порт 3001) або Swagger `/api/docs`.
 

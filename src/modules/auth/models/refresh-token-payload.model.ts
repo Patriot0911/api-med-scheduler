@@ -1,4 +1,4 @@
-import { TokenType } from "./token-type.enum";
+import { TokenType } from './token-type.enum';
 
 export interface IRefreshTokenPayload {
   use: TokenType.Refresh,

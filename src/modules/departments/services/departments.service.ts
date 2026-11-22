@@ -30,7 +30,7 @@ export class DepartmentsService {
       order: { name: 'ASC', },
     });
     return departments.map(
-      (d) => this.departmentsMapper.entityToDictionaryItem(d)
+      (d) => this.departmentsMapper.entityToDictionaryItem(d),
     );
   }
 
@@ -46,11 +46,11 @@ export class DepartmentsService {
       depQb.andWhere('dep.name ILIKE :search', { search: `%${search}%`, });
     }
 
-    const [departmentsData, total] = await depQb.getManyAndCount();
+    const [departmentsData, total,] = await depQb.getManyAndCount();
 
     return {
       items: departmentsData.map(
-        (d) => this.departmentsMapper.entityToListItem(d)
+        (d) => this.departmentsMapper.entityToListItem(d),
       ),
       meta: { count: total, },
     };
@@ -152,7 +152,7 @@ export class DepartmentsService {
 
   async deleteDepartment(departmentId: string): Promise<IDepartmentItemModel> {
     const departmentData = await this.departmentsRepository.findOneOrFail({
-      where: { id: departmentId, }
+      where: { id: departmentId, },
     });
     // Teachers of this department are detached automatically (FK is ON DELETE SET NULL).
     const removedDepartment = await this.departmentsRepository.remove(departmentData);

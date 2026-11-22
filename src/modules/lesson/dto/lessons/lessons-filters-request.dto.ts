@@ -19,55 +19,55 @@ export class LessonsFiltersRequestDto implements ILessonsFiltersModel {
 
   @IsOptional()
   @IsString()
-  @ApiPropertyOptional({ type: 'string', description: 'Lesson name or note, course name, teacher name, student group name' })
+  @ApiPropertyOptional({ type: 'string', description: 'Lesson name or note, course name, teacher name, student group name', })
   search?: string;
 
   @IsOptional()
   @Transform(toArray)
   @IsArray()
   @IsUUID('all', { each: true, })
-  @ApiPropertyOptional({ type: [String], description: 'Lessons taught by any of these teachers (ids from /dictionaries/teachers)' })
+  @ApiPropertyOptional({ type: [String,], description: 'Lessons taught by any of these teachers (ids from /dictionaries/teachers)', })
   teacherIds?: string[];
 
   @IsOptional()
   @Transform(toArray)
   @IsArray()
   @IsUUID('all', { each: true, })
-  @ApiPropertyOptional({ type: [String], description: 'Lessons of any of these student groups (ids from /dictionaries/group)' })
+  @ApiPropertyOptional({ type: [String,], description: 'Lessons of any of these student groups (ids from /dictionaries/group)', })
   studentGroupIds?: string[];
 
   @IsOptional()
   @Transform(toArray)
   @IsArray()
   @IsUUID('all', { each: true, })
-  @ApiPropertyOptional({ type: [String], description: 'Lessons of student groups having any of these tags' })
+  @ApiPropertyOptional({ type: [String,], description: 'Lessons of student groups having any of these tags', })
   groupTagIds?: string[];
 
   @IsOptional()
   @Transform(toArray)
   @IsArray()
   @IsUUID('all', { each: true, })
-  @ApiPropertyOptional({ type: [String], description: 'Lessons of any of these departments' })
+  @ApiPropertyOptional({ type: [String,], description: 'Lessons of any of these departments', })
   departmentIds?: string[];
 
   @IsOptional()
   @Transform(toArray)
   @IsArray()
   @IsUUID('all', { each: true, })
-  @ApiPropertyOptional({ type: [String], description: 'Lessons of any of these courses (ids from /dictionaries/lesson-groups)' })
+  @ApiPropertyOptional({ type: [String,], description: 'Lessons of any of these courses (ids from /dictionaries/lesson-groups)', })
   lessonGroupIds?: string[];
 
   @IsOptional()
   @Transform(toBoolean)
   @IsBoolean()
-  @ApiPropertyOptional({ type: Boolean, description: 'Only lessons outside of any lesson group' })
+  @ApiPropertyOptional({ type: Boolean, description: 'Only lessons outside of any lesson group', })
   withoutLessonGroup?: boolean;
 
   @IsOptional()
   @Transform(toArray)
   @IsArray()
   @IsUUID('all', { each: true, })
-  @ApiPropertyOptional({ type: [String], description: 'Lessons of any of these semesters' })
+  @ApiPropertyOptional({ type: [String,], description: 'Lessons of any of these semesters', })
   semesterIds?: string[];
 
   @IsOptional()

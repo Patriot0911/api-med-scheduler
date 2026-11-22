@@ -8,7 +8,7 @@ import { LessonsService } from './lessons.service';
 import { LessonAccessService } from './lesson-access.service';
 import { ManagedLessonsService } from './managed-lessons.service';
 
-const DEFAULT_SCOPES = [LessonScope.TEACHING, LessonScope.STUDYING];
+const DEFAULT_SCOPES = [LessonScope.TEACHING, LessonScope.STUDYING,];
 
 @Injectable()
 export class MyLessonsService {
@@ -22,7 +22,7 @@ export class MyLessonsService {
     const lessonsQb = this.lessonAccessService.applyScope(
       this.lessonsService.buildLessonsQuery(filters),
       actor,
-      filters.scope ? [filters.scope] : DEFAULT_SCOPES,
+      filters.scope ? [filters.scope,] : DEFAULT_SCOPES,
     );
     const page = await this.lessonsService.getPage(lessonsQb, filters);
     return { ...page, items: page.items.map((item) => this.managedLessonsService.withCanEdit(actor, item)), };

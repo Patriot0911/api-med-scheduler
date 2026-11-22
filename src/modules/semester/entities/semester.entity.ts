@@ -1,5 +1,5 @@
 import { LessonEntity } from 'src/modules/lesson/entities/lesson.entity';
-import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 
 @Entity('semesters')
 export class SemesterEntity {

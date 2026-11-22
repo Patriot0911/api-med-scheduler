@@ -29,16 +29,16 @@ export class LessonEntity {
   @OneToMany(() => TeacherLessonEntity, (teacherLesson) => teacherLesson.lesson)
   teacherLessons: TeacherLessonEntity[];
 
-  @ManyToOne(() => SemesterEntity, (semester) => semester.lessons, { nullable: true })
-  @JoinColumn({ name: 'semester_id' })
+  @ManyToOne(() => SemesterEntity, (semester) => semester.lessons, { nullable: true, })
+  @JoinColumn({ name: 'semester_id', })
   semester: SemesterEntity;
 
-  @Column({ name: 'semester_id', nullable: true })
+  @Column({ name: 'semester_id', nullable: true, })
   semesterId?: string;
 
   // optional: a series or lessons that belong together; deleting the group keeps the lesson
   @ManyToOne(() => LessonsGroupEntity, (group) => group.lessons, { nullable: true, onDelete: 'SET NULL', })
-  @JoinColumn({ name: 'lesson_group_id' })
+  @JoinColumn({ name: 'lesson_group_id', })
   lessonGroup?: LessonsGroupEntity | null;
 
   @Column({ name: 'lesson_group_id', type: 'uuid', nullable: true, })

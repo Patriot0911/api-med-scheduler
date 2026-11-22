@@ -10,18 +10,18 @@ export class TeacherLessonEntity {
   @ManyToOne(() => LessonEntity, (lesson) => lesson.teacherLessons, {
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'lesson_id' })
+  @JoinColumn({ name: 'lesson_id', })
   lesson: LessonEntity;
 
-  @Column({ name: 'lesson_id' })
+  @Column({ name: 'lesson_id', })
   lessonId: string;
 
   @ManyToOne(() => TeacherEntity, (teacher) => teacher.teacherLessons, {
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'teacher_id' })
+  @JoinColumn({ name: 'teacher_id', })
   teacher: TeacherEntity;
 
-  @Column({ name: 'teacher_id' })
+  @Column({ name: 'teacher_id', })
   teacherId: string;
 }

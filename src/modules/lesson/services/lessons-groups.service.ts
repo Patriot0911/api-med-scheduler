@@ -43,10 +43,10 @@ export class LessonsGroupsService {
 
   async getLessonGroupsDictionary(): Promise<ILessonGroupDictionaryItem[]> {
     const lessonGroups = await this.lessonGroupsRepository.find({
-      select: ['id', 'name',]
+      select: ['id', 'name',],
     });
     return lessonGroups.map(
-      (g) => this.lessonGroupsMapper.entityToDictionaryItem(g)
+      (g) => this.lessonGroupsMapper.entityToDictionaryItem(g),
     );
   }
 
@@ -73,12 +73,12 @@ export class LessonsGroupsService {
     }
     restrict?.(lessonGroupsQb);
 
-    const [lsGroupsData, total] = await lessonGroupsQb.getManyAndCount();
+    const [lsGroupsData, total,] = await lessonGroupsQb.getManyAndCount();
     const statsById = await this.getStats(lsGroupsData.map((group) => group.id));
 
     return {
       items: lsGroupsData.map(
-        (group) => this.lessonGroupsMapper.entityToListItem(group, statsById.get(group.id))
+        (group) => this.lessonGroupsMapper.entityToListItem(group, statsById.get(group.id)),
       ),
       meta: { count: total, },
     };
@@ -97,12 +97,12 @@ export class LessonsGroupsService {
       .where('ls.lessonGroupId IN (:...lessonGroupIds)', { lessonGroupIds, })
       .groupBy('ls.lessonGroupId')
       .getRawMany<{ lessonGroupId: string } & ILessonGroupStats>();
-    return new Map(rows.map(({ lessonGroupId, ...stats }) => [lessonGroupId, stats]));
+    return new Map(rows.map(({ lessonGroupId, ...stats }) => [lessonGroupId, stats,]));
   }
 
   async getById(lessonGroupId: string): Promise<ILessonGroupItemModel> {
     const lessonGroup = await this.lessonGroupsRepository.findOneOrFail({
-      where: { id: lessonGroupId, }
+      where: { id: lessonGroupId, },
     });
     return this.lessonGroupsMapper.entityToItem(lessonGroup);
   }
@@ -112,7 +112,7 @@ export class LessonsGroupsService {
       name: data.name,
       note: data.note,
       ...ownership,
-    },);
+    });
     const createdLessonGroup = await this.lessonGroupsRepository.save(newLessonGroup);
     return this.lessonGroupsMapper.entityToItem(createdLessonGroup);
   }
@@ -132,7 +132,7 @@ export class LessonsGroupsService {
   async deleteLessonGroup(lessonGroupId: string, withLessons = false): Promise<ILessonGroupItemModel> {
     return await this.lessonGroupsRepository.manager.transaction(async (manager) => {
       const lessonGroupData = await manager.findOneOrFail(LessonsGroupEntity, {
-        where: { id: lessonGroupId, }
+        where: { id: lessonGroupId, },
       });
       if (withLessons) {
         await manager.delete(LessonEntity, { lessonGroupId, });
@@ -153,7 +153,7 @@ export class LessonsGroupsService {
   /** Moves existing lessons into the group, from another group or none; all of them must exist */
   async assignLessonsToGroup(lessonGroupId: string, lessonIds: string[]): Promise<number> {
     await this.lessonGroupsRepository.findOneOrFail({ where: { id: lessonGroupId, }, });
-    const ids = [...new Set(lessonIds)];
+    const ids = [...new Set(lessonIds),];
     if (await this.lessonsRepository.count({ where: { id: In(ids), }, }) !== ids.length) {
       throw new BadRequestException('Some of the lessons do not exist');
     }
@@ -165,7 +165,7 @@ export class LessonsGroupsService {
   async removeLessonsFromGroup(lessonGroupId: string, lessonIds: string[]): Promise<number> {
     await this.lessonGroupsRepository.findOneOrFail({ where: { id: lessonGroupId, }, });
     const { affected, } = await this.lessonsRepository.update(
-      { id: In([...new Set(lessonIds)]), lessonGroupId, },
+      { id: In([...new Set(lessonIds),]), lessonGroupId, },
       { lessonGroupId: null, },
     );
     return affected ?? 0;
@@ -227,7 +227,7 @@ export class LessonsGroupsService {
 
   /** One lesson per distinct date, in date order */
   private async createLessonsAt(lessonGroupId: string, lesson: TLessonTemplateModel, dates: Date[]): Promise<ILessonItemModel[]> {
-    const lessonDates = [...new Set(dates.map((date) => date.getTime()))]
+    const lessonDates = [...new Set(dates.map((date) => date.getTime())),]
       .sort((a, b) => a - b)
       .map((time) => new Date(time));
     const lessons: ILessonItemModel[] = [];

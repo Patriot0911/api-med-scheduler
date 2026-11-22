@@ -138,7 +138,7 @@ export class LessonsService {
 
   /** Deletes the lessons that exist; returns how many */
   async deleteLessons(lessonIds: string[]): Promise<number> {
-    const { affected, } = await this.lessonsRepository.delete({ id: In([...new Set(lessonIds)]), });
+    const { affected, } = await this.lessonsRepository.delete({ id: In([...new Set(lessonIds),]), });
     return affected ?? 0;
   }
 
@@ -153,7 +153,7 @@ export class LessonsService {
 
   /** Returns the ids without duplicates */
   async assertDepartmentsExist(departmentIds: string[]): Promise<string[]> {
-    const ids = [...new Set(departmentIds)];
+    const ids = [...new Set(departmentIds),];
     if (ids.length > 0 && await this.departmentsRepository.count({ where: { id: In(ids), }, }) !== ids.length) {
       throw new BadRequestException('Some of the lesson departments do not exist');
     }
@@ -168,7 +168,7 @@ export class LessonsService {
 
   /** A lesson keeps at least one teacher, and all of them must exist. Returns the ids without duplicates. */
   async assertTeachersExist(teacherIds: string[]): Promise<string[]> {
-    const ids = [...new Set(teacherIds)];
+    const ids = [...new Set(teacherIds),];
     if (ids.length === 0) {
       throw new BadRequestException('A lesson needs at least one teacher');
     }
@@ -265,7 +265,7 @@ export class LessonsService {
         .skip((page - 1) * pageSize)
         .take(pageSize);
     }
-    const [lsData, total] = await lessonsQb.getManyAndCount();
+    const [lsData, total,] = await lessonsQb.getManyAndCount();
 
     return {
       items: await this.toListItems(lsData),
@@ -289,10 +289,10 @@ export class LessonsService {
         relations: ITEM_RELATIONS,
       })
       : [];
-    const lessonsById = new Map(lessonsWithRelations.map((lesson) => [lesson.id, lesson]));
+    const lessonsById = new Map(lessonsWithRelations.map((lesson) => [lesson.id, lesson,]));
 
     return lessons.map(
-      (lesson) => this.lessonsMapper.entityToListItem(lessonsById.get(lesson.id) ?? lesson, true)
+      (lesson) => this.lessonsMapper.entityToListItem(lessonsById.get(lesson.id) ?? lesson, true),
     );
   }
 }

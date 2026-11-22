@@ -4,7 +4,7 @@ import { LessonEntity } from './lesson.entity';
 
 // constraint names match the migration, so synchronize (dev) and migrations build the same schema
 @Entity('lesson_departments')
-@Unique('UQ_lesson_departments_lesson_department', ['lessonId', 'departmentId'])
+@Unique('UQ_lesson_departments_lesson_department', ['lessonId', 'departmentId',])
 export class LessonDepartmentEntity {
   @PrimaryGeneratedColumn('uuid', { primaryKeyConstraintName: 'PK_lesson_departments', })
   id: string;

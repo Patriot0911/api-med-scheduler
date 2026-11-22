@@ -36,7 +36,7 @@ export class AuthorityService {
   }
 
   fromRoles(userId: string, roles: TRoleAuthority[]): IAuthorityModel {
-    const permissions = [...new Set(roles.flatMap((role) => role.permissions))];
+    const permissions = [...new Set(roles.flatMap((role) => role.permissions)),];
     return {
       userId,
       permissions,

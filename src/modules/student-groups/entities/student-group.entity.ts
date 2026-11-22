@@ -1,4 +1,4 @@
-import { Column, Entity, JoinTable, ManyToMany, OneToMany, PrimaryGeneratedColumn, } from 'typeorm';
+import { Column, Entity, JoinTable, ManyToMany, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { GroupTagEntity } from './group-tags.entity';
 import { StudentGroupLessonEntity } from 'src/modules/lesson/entities/student-group-lesson.entity';
 
@@ -16,8 +16,8 @@ export class StudentGroupEntity {
   @ManyToMany(() => GroupTagEntity, (groupTag) => groupTag.studentGroups)
   @JoinTable({
     name: 'student_group_tags',
-    joinColumn: { name: 'student_group_id', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'group_tag_id', referencedColumnName: 'id' },
+    joinColumn: { name: 'student_group_id', referencedColumnName: 'id', },
+    inverseJoinColumn: { name: 'group_tag_id', referencedColumnName: 'id', },
   })
   groupTags: GroupTagEntity[];
 

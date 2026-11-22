@@ -1,6 +1,6 @@
-import { Permission } from "src/shared/models/permission.enum";
-import { ITeacherProfileModel } from "src/modules/users/models/teacher-profile.model";
-import { IStudentProfileModel } from "src/modules/users/models/student-profile.model";
+import { Permission } from 'src/shared/models/permission.enum';
+import { ITeacherProfileModel } from 'src/modules/users/models/teacher-profile.model';
+import { IStudentProfileModel } from 'src/modules/users/models/student-profile.model';
 
 export interface IUserPayloadTeacherModel extends ITeacherProfileModel {
   headOfDepartmentId: string | null;

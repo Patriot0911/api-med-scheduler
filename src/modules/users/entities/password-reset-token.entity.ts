@@ -6,25 +6,25 @@ export class PasswordResetTokenEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => UserEntity, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'user_id' })
+  @ManyToOne(() => UserEntity, { onDelete: 'CASCADE', })
+  @JoinColumn({ name: 'user_id', })
   user: UserEntity;
 
-  @Column({ name: 'user_id' })
+  @Column({ name: 'user_id', })
   userId: string;
 
-  @Column({ unique: true })
+  @Column({ unique: true, })
   selector: string;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'text', })
   validatorHash: string;
 
-  @Column({ type: 'timestamptz' })
+  @Column({ type: 'timestamptz', })
   expiresAt: Date;
 
   @Column({ type: 'timestamptz', nullable: true, })
   usedAt: Date | null;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: 'timestamptz', })
   createdAt: Date;
 }

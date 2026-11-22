@@ -10,18 +10,18 @@ export class StudentGroupLessonEntity {
   @ManyToOne(() => LessonEntity, (lesson) => lesson.studentGroupLessons, {
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'lesson_id' })
+  @JoinColumn({ name: 'lesson_id', })
   lesson: LessonEntity;
 
-  @Column({ name: 'lesson_id' })
+  @Column({ name: 'lesson_id', })
   lessonId: string;
 
   @ManyToOne(() => StudentGroupEntity, (group) => group.studentGroupLessons, {
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'student_group_id' })
+  @JoinColumn({ name: 'student_group_id', })
   studentGroup: StudentGroupEntity;
 
-  @Column({ name: 'student_group_id' })
+  @Column({ name: 'student_group_id', })
   studentGroupId: string;
 }

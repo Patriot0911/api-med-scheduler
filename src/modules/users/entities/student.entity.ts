@@ -8,14 +8,14 @@ export class StudentEntity {
   id: string;
 
   @OneToOne(() => UserEntity, (user) => user.student, { onDelete: 'CASCADE', })
-  @JoinColumn({ name: 'user_id' })
+  @JoinColumn({ name: 'user_id', })
   user: UserEntity;
 
   @Column({ name: 'user_id', unique: true, })
   userId: string;
 
   @ManyToOne(() => StudentGroupEntity, { nullable: true, })
-  @JoinColumn({ name: 'student_group_id' })
+  @JoinColumn({ name: 'student_group_id', })
   studentGroup: StudentGroupEntity | null;
 
   @Column({ name: 'student_group_id', nullable: true, })

@@ -47,7 +47,7 @@ export class LessonAccessService {
     if (!user) {
       return ANONYMOUS;
     }
-    const [teacher, student] = await Promise.all([
+    const [teacher, student,] = await Promise.all([
       this.teachersRepository.findOne({ where: { userId: user.sub, }, }),
       this.studentsRepository.findOne({ where: { userId: user.sub, }, }),
     ]);
@@ -87,7 +87,7 @@ export class LessonAccessService {
   applyVisibility(lessonsQb: SelectQueryBuilder<LessonEntity>, actor: ILessonActorModel): SelectQueryBuilder<LessonEntity> {
     return lessonsQb.andWhere(new Brackets((visibilityQb) => {
       visibilityQb.where('ls.visibility = :allVisibility', { allVisibility: LessonVisibility.ALL, });
-      for (const scope of [LessonScope.TEACHING, LessonScope.DEPARTMENT, LessonScope.STUDYING]) {
+      for (const scope of [LessonScope.TEACHING, LessonScope.DEPARTMENT, LessonScope.STUDYING,]) {
         const condition = this.scopeCondition(scope, actor);
         if (condition) {
           visibilityQb.orWhere(condition.sql, condition.params);

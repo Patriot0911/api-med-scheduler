@@ -29,8 +29,8 @@ export class UserEntity {
   @ManyToMany(() => RoleEntity, (role) => role.users)
   @JoinTable({
     name: 'user_roles',
-    joinColumn: { name: 'userId', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'roleId', referencedColumnName: 'id' },
+    joinColumn: { name: 'userId', referencedColumnName: 'id', },
+    inverseJoinColumn: { name: 'roleId', referencedColumnName: 'id', },
   })
   roles: RoleEntity[];
 

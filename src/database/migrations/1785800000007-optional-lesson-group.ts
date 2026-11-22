@@ -10,8 +10,8 @@ export class OptionalLessonGroup1785800000007 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await this.dropLessonGroupForeignKeys(queryRunner);
-    await queryRunner.query(`ALTER TABLE "lessons" ALTER COLUMN "lesson_group_id" DROP NOT NULL`);
-    await queryRunner.query(`ALTER TABLE "lessons" ADD CONSTRAINT "FK_lessons_lesson_group_id" FOREIGN KEY ("lesson_group_id") REFERENCES "lessons_group"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
+    await queryRunner.query('ALTER TABLE "lessons" ALTER COLUMN "lesson_group_id" DROP NOT NULL');
+    await queryRunner.query('ALTER TABLE "lessons" ADD CONSTRAINT "FK_lessons_lesson_group_id" FOREIGN KEY ("lesson_group_id") REFERENCES "lessons_group"("id") ON DELETE SET NULL ON UPDATE NO ACTION');
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
@@ -25,8 +25,8 @@ export class OptionalLessonGroup1785800000007 implements MigrationInterface {
       )
       UPDATE "lessons" SET "lesson_group_id" = (SELECT "id" FROM ungrouped) WHERE "lesson_group_id" IS NULL
     `);
-    await queryRunner.query(`ALTER TABLE "lessons" ALTER COLUMN "lesson_group_id" SET NOT NULL`);
-    await queryRunner.query(`ALTER TABLE "lessons" ADD CONSTRAINT "FK_1471f19459cbe09229e9ce44adc" FOREIGN KEY ("lesson_group_id") REFERENCES "lessons_group"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+    await queryRunner.query('ALTER TABLE "lessons" ALTER COLUMN "lesson_group_id" SET NOT NULL');
+    await queryRunner.query('ALTER TABLE "lessons" ADD CONSTRAINT "FK_1471f19459cbe09229e9ce44adc" FOREIGN KEY ("lesson_group_id") REFERENCES "lessons_group"("id") ON DELETE NO ACTION ON UPDATE NO ACTION');
   }
 
   private async dropLessonGroupForeignKeys(queryRunner: QueryRunner): Promise<void> {

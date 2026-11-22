@@ -14,7 +14,7 @@ export class CreateLessonRequestDto implements ICreateLessonModel {
   @IsUUID()
   semesterId?: string | null;
 
-  @ApiPropertyOptional({ nullable: true, description: 'Optional lesson group (a series, lessons that belong together); null takes the lesson out of its group' })
+  @ApiPropertyOptional({ nullable: true, description: 'Optional lesson group (a series, lessons that belong together); null takes the lesson out of its group', })
   @IsOptional()
   @IsUUID()
   lessonGroupId?: string | null;
@@ -28,7 +28,7 @@ export class CreateLessonRequestDto implements ICreateLessonModel {
   date: Date;
 
   @ApiPropertyOptional({
-    type: [String],
+    type: [String,],
     description: 'Departments of the lesson; the head of each may edit it. A teacher may add only departments of the lesson teachers.',
   })
   @IsOptional()
@@ -37,7 +37,7 @@ export class CreateLessonRequestDto implements ICreateLessonModel {
   departmentIds?: string[];
 
 
-  @ApiProperty({ description: 'Teacher profile ids (TeacherEntity.id, not user id), from any department. Every one of them may edit the lesson.' })
+  @ApiProperty({ description: 'Teacher profile ids (TeacherEntity.id, not user id), from any department. Every one of them may edit the lesson.', })
   @IsArray()
   @ArrayMinSize(1)
   @IsUUID('all', { each: true, })
@@ -46,15 +46,15 @@ export class CreateLessonRequestDto implements ICreateLessonModel {
 
   @ApiProperty()
   @IsArray()
-  @IsString({ each: true })
+  @IsString({ each: true, })
   studentGroupIds: string[];
 
   @Min(5)
   @IsNumber()
-  @ApiProperty({ example: 50, description: 'lesson`s duration in minutes' })
+  @ApiProperty({ example: 50, description: 'lesson`s duration in minutes', })
   duration: number;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ required: false, })
   @IsString()
   @IsOptional()
   note?: string;

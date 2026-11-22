@@ -19,8 +19,8 @@ export class LessonDepartments1785800000008 implements MigrationInterface {
           CONSTRAINT "UQ_lesson_departments_lesson_department" UNIQUE ("lesson_id", "department_id")
         )
       `);
-      await queryRunner.query(`ALTER TABLE "lesson_departments" ADD CONSTRAINT "FK_lesson_departments_lesson_id" FOREIGN KEY ("lesson_id") REFERENCES "lessons"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-      await queryRunner.query(`ALTER TABLE "lesson_departments" ADD CONSTRAINT "FK_lesson_departments_department_id" FOREIGN KEY ("department_id") REFERENCES "departments"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+      await queryRunner.query('ALTER TABLE "lesson_departments" ADD CONSTRAINT "FK_lesson_departments_lesson_id" FOREIGN KEY ("lesson_id") REFERENCES "lessons"("id") ON DELETE CASCADE ON UPDATE NO ACTION');
+      await queryRunner.query('ALTER TABLE "lesson_departments" ADD CONSTRAINT "FK_lesson_departments_department_id" FOREIGN KEY ("department_id") REFERENCES "departments"("id") ON DELETE CASCADE ON UPDATE NO ACTION');
     }
 
     if (await queryRunner.hasColumn('lessons', 'department_id')) {
@@ -44,19 +44,19 @@ export class LessonDepartments1785800000008 implements MigrationInterface {
           END LOOP;
         END $$;
       `);
-      await queryRunner.query(`ALTER TABLE "lessons" DROP COLUMN "department_id"`);
+      await queryRunner.query('ALTER TABLE "lessons" DROP COLUMN "department_id"');
     }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // lossy: a lesson keeps one of its departments
-    await queryRunner.query(`ALTER TABLE "lessons" ADD "department_id" uuid`);
+    await queryRunner.query('ALTER TABLE "lessons" ADD "department_id" uuid');
     await queryRunner.query(`
       UPDATE "lessons" l SET "department_id" = (
         SELECT ld."department_id" FROM "lesson_departments" ld WHERE ld."lesson_id" = l."id" ORDER BY ld."department_id" LIMIT 1
       )
     `);
-    await queryRunner.query(`ALTER TABLE "lessons" ADD CONSTRAINT "FK_lessons_department_id" FOREIGN KEY ("department_id") REFERENCES "departments"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
-    await queryRunner.query(`DROP TABLE "lesson_departments"`);
+    await queryRunner.query('ALTER TABLE "lessons" ADD CONSTRAINT "FK_lessons_department_id" FOREIGN KEY ("department_id") REFERENCES "departments"("id") ON DELETE SET NULL ON UPDATE NO ACTION');
+    await queryRunner.query('DROP TABLE "lesson_departments"');
   }
 }

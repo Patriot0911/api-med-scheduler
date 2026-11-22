@@ -1,16 +1,16 @@
-import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsNumber, IsOptional, IsString, Max, Min, } from "class-validator";
-import { IGetRolesFiltersModel } from "../models/get-roles-filters.model";
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IGetRolesFiltersModel } from '../models/get-roles-filters.model';
 import { Type } from 'class-transformer';
 
 export class GetRolesRequestDto implements IGetRolesFiltersModel {
-  @ApiProperty({ required: false, default: 1 })
+  @ApiProperty({ required: false, default: 1, })
   @IsNumber()
   @Min(1)
   @Type(() => Number)
   page: number;
 
-  @ApiProperty({ required: false, default: 10 })
+  @ApiProperty({ required: false, default: 10, })
   @IsNumber()
   @Min(0)
   @Max(100)
@@ -19,6 +19,6 @@ export class GetRolesRequestDto implements IGetRolesFiltersModel {
 
   @IsOptional()
   @IsString()
-  @ApiPropertyOptional({ type: 'string', description: 'Search string' })
+  @ApiPropertyOptional({ type: 'string', description: 'Search string', })
   search?: string;
 }

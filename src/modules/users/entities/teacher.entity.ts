@@ -9,14 +9,14 @@ export class TeacherEntity {
   id: string;
 
   @OneToOne(() => UserEntity, (user) => user.teacher, { onDelete: 'CASCADE', })
-  @JoinColumn({ name: 'user_id' })
+  @JoinColumn({ name: 'user_id', })
   user: UserEntity;
 
   @Column({ name: 'user_id', unique: true, })
   userId: string;
 
   @ManyToOne(() => DepartmentEntity, (department) => department.teachers, { nullable: true, onDelete: 'SET NULL', })
-  @JoinColumn({ name: 'department_id' })
+  @JoinColumn({ name: 'department_id', })
   department?: DepartmentEntity | null;
 
   @Column({ name: 'department_id', type: 'uuid', nullable: true, })

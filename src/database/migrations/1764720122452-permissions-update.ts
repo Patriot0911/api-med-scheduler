@@ -1,9 +1,9 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class PermissionsUpdate1764720122452 implements MigrationInterface {
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
             ALTER TYPE roles_permissions_enum ADD VALUE 'read_groups';
             ALTER TYPE roles_permissions_enum ADD VALUE 'edit_groups';
             ALTER TYPE roles_permissions_enum ADD VALUE 'create_groups';
@@ -28,27 +28,27 @@ export class PermissionsUpdate1764720122452 implements MigrationInterface {
             ALTER TYPE roles_permissions_enum ADD VALUE 'edit_comments';
             ALTER TYPE roles_permissions_enum ADD VALUE 'delete_comments';
         `);
-    }
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
             CREATE TYPE roles_permissions_enum_old AS ENUM (
                 'admin'
             );
         `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
             ALTER TABLE roles
             ALTER COLUMN permissions TYPE roles_permissions_enum_old
             USING permissions::text::roles_permissions_enum_old;
         `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
             DROP TYPE roles_permissions_enum;
         `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
             ALTER TYPE roles_permissions_enum_old RENAME TO roles_permissions_enum;
         `);
-    }
+  }
 }

@@ -1,15 +1,15 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
-import { JwtAccessGuard } from "src/modules/auth/guards/access-refresh.guard";
-import { PermissionsGuard } from "src/modules/auth/guards/permission.guard";
-import { Permissions } from "src/modules/auth/decorator/roles.decorator";
-import { Permission } from "../../../shared/models/permission.enum";
-import { SemestersService } from "../services/semesters.service";
-import { CreateSemesterRequestDto } from "../dto/create-semester-request.dto";
-import { GetSemestersRequestDto } from "../dto/get-semesters-request.dto";
-import { IGenericListPayloadResponse, } from "src/shared/models/generic-list-payload.response";
-import { ISemesterItemModel } from "../models/semester-item.model";
-import { ISemesterListItemModel } from "../models/semester-list-item.model";
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { JwtAccessGuard } from 'src/modules/auth/guards/access-refresh.guard';
+import { PermissionsGuard } from 'src/modules/auth/guards/permission.guard';
+import { Permissions } from 'src/modules/auth/decorator/roles.decorator';
+import { Permission } from '../../../shared/models/permission.enum';
+import { SemestersService } from '../services/semesters.service';
+import { CreateSemesterRequestDto } from '../dto/create-semester-request.dto';
+import { GetSemestersRequestDto } from '../dto/get-semesters-request.dto';
+import { IGenericListPayloadResponse } from 'src/shared/models/generic-list-payload.response';
+import { ISemesterItemModel } from '../models/semester-item.model';
+import { ISemesterListItemModel } from '../models/semester-list-item.model';
 
 @ApiTags('Semesters')
 @Controller('api/semesters')
@@ -46,7 +46,7 @@ export class SemestersController {
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
   @Permissions(Permission.ADMIN)
-  async editSemester(@Param('semesterId') semesterId: string, @Body() data: CreateSemesterRequestDto,): Promise<boolean> {
+  async editSemester(@Param('semesterId') semesterId: string, @Body() data: CreateSemesterRequestDto): Promise<boolean> {
     return await this.semestersService.editSemester(data, semesterId);
   }
 
@@ -54,7 +54,7 @@ export class SemestersController {
   @ApiBearerAuth()
   @UseGuards(JwtAccessGuard, PermissionsGuard)
   @Permissions(Permission.ADMIN)
-  async deleteSemester(@Param('semesterId') semesterId: string,): Promise<ISemesterItemModel> {
+  async deleteSemester(@Param('semesterId') semesterId: string): Promise<ISemesterItemModel> {
     return await this.semestersService.deleteSemester(semesterId);
   }
 }

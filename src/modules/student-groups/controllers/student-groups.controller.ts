@@ -1,16 +1,16 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
-import { JwtAccessGuard } from "src/modules/auth/guards/access-refresh.guard";
-import { StudentGroupsService } from "../services/student-groups.service";
-import { Permissions } from "src/modules/auth/decorator/roles.decorator";
-import { Permission } from "src/shared/models/permission.enum";
-import { PermissionsGuard } from "src/modules/auth/guards/permission.guard";
-import { IGenericListPayloadResponse } from "src/shared/models/generic-list-payload.response";
-import { GetStudentGroupsRequestDto } from "../dto/get-student-groups-request.dto";
-import { IStudentGroupListItemModel } from "../models/student-group-list-item.model";
-import { IStudentGroupItemModel } from "../models/student-group-item.model";
-import { CreateStudentGroupRequestDto } from "../dto/create-student-group-request.dto";
-import { EditStudentGroupRequestDto } from "../dto/edit-student-group-request.dto";
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { JwtAccessGuard } from 'src/modules/auth/guards/access-refresh.guard';
+import { StudentGroupsService } from '../services/student-groups.service';
+import { Permissions } from 'src/modules/auth/decorator/roles.decorator';
+import { Permission } from 'src/shared/models/permission.enum';
+import { PermissionsGuard } from 'src/modules/auth/guards/permission.guard';
+import { IGenericListPayloadResponse } from 'src/shared/models/generic-list-payload.response';
+import { GetStudentGroupsRequestDto } from '../dto/get-student-groups-request.dto';
+import { IStudentGroupListItemModel } from '../models/student-group-list-item.model';
+import { IStudentGroupItemModel } from '../models/student-group-item.model';
+import { CreateStudentGroupRequestDto } from '../dto/create-student-group-request.dto';
+import { EditStudentGroupRequestDto } from '../dto/edit-student-group-request.dto';
 
 @ApiTags('Student Groups')
 @Controller('api/student-groups')

@@ -7,7 +7,7 @@ import { SemestersMapper } from './mappers/semesters.mapper';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([SemesterEntity]),
+    TypeOrmModule.forFeature([SemesterEntity,]),
   ],
   controllers: [SemestersController,],
   providers: [

@@ -53,7 +53,7 @@ export class UsersService {
       order: { user: { fullName: 'ASC', }, },
     });
     return teachers.map(
-      (t) => this.usersMapper.teacherToDictionaryItem(t)
+      (t) => this.usersMapper.teacherToDictionaryItem(t),
     );
   }
 
@@ -93,7 +93,7 @@ export class UsersService {
       }));
     }
 
-    const [[usersData, total], actor] = await Promise.all([
+    const [[usersData, total,], actor,] = await Promise.all([
       usersQb.distinct(true).getManyAndCount(),
       this.authorityService.getAuthority(actorId),
     ]);
@@ -103,14 +103,14 @@ export class UsersService {
         (u) => this.usersMapper.entityToListItem(
           u,
           this.authorityService.canManageUser(actor, this.authorityService.fromRoles(u.id, u.roles)),
-        )
+        ),
       ),
       meta: { count: total, },
     };
   }
 
   async getById(id: string, actorId: string): Promise<IUserItemModel> {
-    const [user, actor] = await Promise.all([
+    const [user, actor,] = await Promise.all([
       this.usersRepository.findOneOrFail({
         where: { id, },
         relations: { roles: true, teacher: true, student: true, },
@@ -292,20 +292,20 @@ export class UsersService {
 
   async getUserById(id: string): Promise<UserEntity | null> {
     const user = await this.usersRepository.findOne({
-      where: { id },
+      where: { id, },
       relations: ['roles',],
     });
     return user;
   }
   async getUserByEmail(email: string): Promise<UserEntity | null> {
     return await this.usersRepository.findOne({
-      where: { email },
-      relations: ['roles'],
+      where: { email, },
+      relations: ['roles',],
     });
   }
 
   async assertCanManageUser(actorId: string, targetUserId: string): Promise<void> {
-    const [actor, target] = await Promise.all([
+    const [actor, target,] = await Promise.all([
       this.authorityService.getAuthority(actorId),
       this.authorityService.getAuthority(targetUserId),
     ]);

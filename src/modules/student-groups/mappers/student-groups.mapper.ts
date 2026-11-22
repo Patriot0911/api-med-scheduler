@@ -17,7 +17,7 @@ export class StudentGroupsMapper {
   }
 
   entityToItem(group: StudentGroupEntity): IStudentGroupItemModel {
-    const { id, name, studyYear, groupTags } = group;
+    const { id, name, studyYear, groupTags, } = group;
     return { id, name, studyYear, groupTags: groupTags.map(tag => tag.id), };
   }
 }

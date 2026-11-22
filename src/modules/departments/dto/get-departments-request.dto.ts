@@ -4,13 +4,13 @@ import { Type } from 'class-transformer';
 import { IGetDepartmentsFiltersModel } from '../models/get-departments-filters.model';
 
 export class GetDepartmentsRequestDto implements IGetDepartmentsFiltersModel {
-  @ApiProperty({ required: false, default: 1 })
+  @ApiProperty({ required: false, default: 1, })
   @IsNumber()
   @Min(1)
   @Type(() => Number)
   page: number;
 
-  @ApiProperty({ required: false, default: 10 })
+  @ApiProperty({ required: false, default: 10, })
   @IsNumber()
   @Min(0)
   @Max(100)
@@ -19,6 +19,6 @@ export class GetDepartmentsRequestDto implements IGetDepartmentsFiltersModel {
 
   @IsOptional()
   @IsString()
-  @ApiPropertyOptional({ type: 'string', description: 'Search string' })
+  @ApiPropertyOptional({ type: 'string', description: 'Search string', })
   search?: string;
 }

@@ -21,10 +21,10 @@ export class SemestersService {
 
   async getSemesterDictionary(): Promise<ISemesterDictionaryItem[]> {
     const semesters = await this.semestersRepository.find({
-      select: ['id', 'name',]
+      select: ['id', 'name',],
     });
     return semesters.map(
-      (s) => this.semestersMapper.entityToDictionaryItem(s)
+      (s) => this.semestersMapper.entityToDictionaryItem(s),
     );
   }
 
@@ -45,13 +45,13 @@ export class SemestersService {
       semQb.andWhere('sem.name ILIKE :search', { search: `%${search}%`, });
     }
 
-    const [semestersData, total] = await semQb
+    const [semestersData, total,] = await semQb
       .distinct(true)
       .getManyAndCount();
 
     return {
       items: semestersData.map(
-        (s) => this.semestersMapper.entityToListItem(s)
+        (s) => this.semestersMapper.entityToListItem(s),
       ),
       meta: { count: total, },
     };
@@ -59,7 +59,7 @@ export class SemestersService {
 
   async getById(semesterId: string): Promise<ISemesterItemModel> {
     const semester = await this.semestersRepository.findOneOrFail({
-      where: { id: semesterId, }
+      where: { id: semesterId, },
     });
     return this.semestersMapper.entityToItem(semester);
   }
@@ -68,8 +68,8 @@ export class SemestersService {
     const newSemester = this.semestersRepository.create({
       name: data.name,
       dateFrom: data.dateFrom,
-      dateTo: data.dateTo
-    },);
+      dateTo: data.dateTo,
+    });
     const createdSemester = await this.semestersRepository.save(newSemester);
     return this.semestersMapper.entityToItem(createdSemester);
   }
@@ -88,7 +88,7 @@ export class SemestersService {
 
   async deleteSemester(semesterId: string): Promise<ISemesterItemModel> {
     const semesetrData = await this.semestersRepository.findOneOrFail({
-      where: { id: semesterId, }
+      where: { id: semesterId, },
     });
     const removedSemester = await this.semestersRepository.remove(semesetrData);
     return this.semestersMapper.entityToItem(removedSemester);

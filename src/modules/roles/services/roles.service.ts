@@ -22,10 +22,10 @@ export class RolesService {
 
   async getRolesDictionary() {
     const roles = await this.rolesRepository.find({
-      select: ['id', 'name',]
+      select: ['id', 'name',],
     });
     return roles.map(
-      (r) => this.rolesMapper.entityToDictionaryItem(r)
+      (r) => this.rolesMapper.entityToDictionaryItem(r),
     );
   }
 
@@ -42,21 +42,21 @@ export class RolesService {
       rolesQb.andWhere('roles.name ILIKE :search', { search: `%${search}%`, });
     }
 
-    const [[rolesData, total], actor] = await Promise.all([
+    const [[rolesData, total,], actor,] = await Promise.all([
       rolesQb.getManyAndCount(),
       this.authorityService.getAuthority(actorId),
     ]);
 
     return {
       items: rolesData.map(
-        (r) => this.rolesMapper.entityToListItem(r, this.authorityService.canManageRole(actor, r))
+        (r) => this.rolesMapper.entityToListItem(r, this.authorityService.canManageRole(actor, r)),
       ),
       meta: { count: total, },
     };
   }
 
   async getById(id: string, actorId: string): Promise<IRoleItemModel> {
-    const [role, actor] = await Promise.all([
+    const [role, actor,] = await Promise.all([
       this.rolesRepository.findOneOrFail({ where: { id, }, }),
       this.authorityService.getAuthority(actorId),
     ]);
@@ -69,15 +69,15 @@ export class RolesService {
       name: roleData.name,
       permissions: roleData.permissions,
       rolePriority: roleData.rolePriority,
-    },);
-    this.authorityService.assertCanManageRoles(actor, [newRole]);
+    });
+    this.authorityService.assertCanManageRoles(actor, [newRole,]);
 
     const createdRole = await this.rolesRepository.save(newRole);
     return this.rolesMapper.entityToItem(createdRole, true);
   }
 
   async editRole(roleData: IEditRoleModel, roleId: string, actorId: string): Promise<boolean> {
-    const [currentRole, actor] = await Promise.all([
+    const [currentRole, actor,] = await Promise.all([
       this.rolesRepository.findOneOrFail({ where: { id: roleId, }, }),
       this.authorityService.getAuthority(actorId),
     ]);
@@ -85,7 +85,7 @@ export class RolesService {
       permissions: roleData.permissions,
       rolePriority: roleData.rolePriority ?? currentRole.rolePriority,
     };
-    this.authorityService.assertCanManageRoles(actor, [currentRole, nextRole]);
+    this.authorityService.assertCanManageRoles(actor, [currentRole, nextRole,]);
 
     const updatedRole = await this.rolesRepository.update(
       { id: roleId, },
@@ -98,11 +98,11 @@ export class RolesService {
   }
 
   async deleteRole(roleId: string, actorId: string): Promise<IRoleItemModel> {
-    const [role, actor] = await Promise.all([
+    const [role, actor,] = await Promise.all([
       this.rolesRepository.findOneOrFail({ where: { id: roleId, }, }),
       this.authorityService.getAuthority(actorId),
     ]);
-    this.authorityService.assertCanManageRoles(actor, [role]);
+    this.authorityService.assertCanManageRoles(actor, [role,]);
 
     const removedRole = await this.rolesRepository.remove(role);
     return this.rolesMapper.entityToItem({ ...removedRole, id: roleId, }, true);

@@ -36,7 +36,7 @@ export class AuthService {
   async getMe(userId: string): Promise<IUserPayload> {
     const userData = await this.usersRepository.findOneOrFail({
       where: { id: userId, },
-      relations: ['roles', 'teacher', 'teacher.headedDepartment', 'student'],
+      relations: ['roles', 'teacher', 'teacher.headedDepartment', 'student',],
     });
     return this.authMapper.userEntityToUserPayload(userData);
   }
@@ -82,7 +82,7 @@ export class AuthService {
   async login(data: ILoginModel): Promise<IAuthResponse> {
     const userData = await this.usersRepository.findOne({
       where: { email: data.email, },
-      relations: ['teacher', 'teacher.headedDepartment', 'student'],
+      relations: ['teacher', 'teacher.headedDepartment', 'student',],
     });
     if (!userData) throw new BadRequestException('Invalid credentials');
     const isValidPassword = await this.passwordService.verify(userData.password, data.password);
@@ -98,7 +98,7 @@ export class AuthService {
     const tokens = await this.generateTokens(
       userData.id,
       permissions,
-      roles
+      roles,
     );
     await this.updateRefreshToken(userData.id, tokens.refreshToken);
     await this.markUserLoggedIn(userData.id);
@@ -123,7 +123,7 @@ export class AuthService {
     const tokens = await this.generateTokens(
       createdUser.id,
       permissions,
-      roles
+      roles,
     );
     await this.updateRefreshToken(createdUser.id, tokens.refreshToken);
     await this.markUserLoggedIn(createdUser.id);
@@ -133,7 +133,7 @@ export class AuthService {
   async refreshToken(userId: string, refreshToken: string) {
     const userData = await this.usersRepository.findOne({
       where: { id: userId, },
-      relations: ['teacher', 'teacher.headedDepartment', 'student'],
+      relations: ['teacher', 'teacher.headedDepartment', 'student',],
     });
     if (!userData || !userData.refreshToken) throw new UnauthorizedException();
 
@@ -159,7 +159,7 @@ export class AuthService {
   async logout(userId: string): Promise<boolean> {
     const updatedUser = await this.usersRepository.update(
       { id: userId, },
-      { refreshToken: null, }
+      { refreshToken: null, },
     );
     return !!updatedUser.affected;
   }
@@ -186,7 +186,7 @@ export class AuthService {
     };
     const accessToken = await this.signTokenPayload(accessPayload, TokenType.Access);
     const refreshToken = await this.signTokenPayload(refreshPayload, TokenType.Refresh);
-    return { accessToken, refreshToken };
+    return { accessToken, refreshToken, };
   }
 
   async verifyRefreshToken(userId: string, refreshToken: string) {

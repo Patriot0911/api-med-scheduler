@@ -24,7 +24,7 @@ export class RolesMapper {
   rolesToAccess(roles: RoleEntity[]): IAccessModel {
     const roleNames = roles.map(r => r.name);
     const aggregatedPermissions = [
-      ...new Set(roles.flatMap(role => role.permissions),),
+      ...new Set(roles.flatMap(role => role.permissions)),
     ];
     return {
       roles: roleNames,

@@ -115,9 +115,9 @@ export class ManagedLessonGroupsService {
   /** Moves only lessons the actor teaches, from another group or none */
   async assignLessonsToGroup(lessonGroupId: string, lessonIds: string[], actor: ILessonActorModel): Promise<number> {
     this.lessonAccessService.assertCanManageGroupLessons(actor, await this.findGroup(lessonGroupId));
-    const ids = [...new Set(lessonIds)];
+    const ids = [...new Set(lessonIds),];
     const taughtQb = this.lessonsRepository.createQueryBuilder('ls').where('ls.id IN (:...ids)', { ids, });
-    const taughtCount = await this.lessonAccessService.applyScope(taughtQb, actor, [LessonScope.TEACHING]).getCount();
+    const taughtCount = await this.lessonAccessService.applyScope(taughtQb, actor, [LessonScope.TEACHING,]).getCount();
     if (taughtCount !== ids.length) {
       throw new ForbiddenException('You can add to the group only existing lessons you teach');
     }

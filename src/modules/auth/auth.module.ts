@@ -24,7 +24,7 @@ import { UsersModule } from '../users/users.module';
       RoleEntity,
     ]),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController,],
   providers: [
     AuthService,
     PasswordService,

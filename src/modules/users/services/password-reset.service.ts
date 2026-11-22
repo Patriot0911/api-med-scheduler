@@ -52,7 +52,7 @@ export class PasswordResetService {
   }
 
   async resetPassword(token: string, newPassword: string): Promise<boolean> {
-    const [selector, validator] = token.split(TOKEN_SEPARATOR);
+    const [selector, validator,] = token.split(TOKEN_SEPARATOR);
     if (!selector || !validator) {
       throw new BadRequestException('Invalid or expired token');
     }

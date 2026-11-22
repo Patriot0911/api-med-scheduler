@@ -10,12 +10,12 @@ export class DropLessonDelayedDate1785800000009 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     if (!(await queryRunner.hasColumn('lessons', 'delayedDate'))) return;
-    await queryRunner.query(`UPDATE "lessons" SET "date" = "delayedDate" WHERE "delayedDate" IS NOT NULL`);
-    await queryRunner.query(`ALTER TABLE "lessons" DROP COLUMN "delayedDate"`);
+    await queryRunner.query('UPDATE "lessons" SET "date" = "delayedDate" WHERE "delayedDate" IS NOT NULL');
+    await queryRunner.query('ALTER TABLE "lessons" DROP COLUMN "delayedDate"');
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // the original dates of moved lessons are gone: the column comes back empty
-    await queryRunner.query(`ALTER TABLE "lessons" ADD "delayedDate" TIMESTAMP WITH TIME ZONE`);
+    await queryRunner.query('ALTER TABLE "lessons" ADD "delayedDate" TIMESTAMP WITH TIME ZONE');
   }
 }

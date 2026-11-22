@@ -18,14 +18,14 @@ export class LessonsGroupEntity {
   lessons: LessonEntity[];
 
   @ManyToOne(() => TeacherEntity, { nullable: true, onDelete: 'SET NULL', })
-  @JoinColumn({ name: 'created_by_teacher_id' })
+  @JoinColumn({ name: 'created_by_teacher_id', })
   createdByTeacher?: TeacherEntity | null;
 
   @Column({ name: 'created_by_teacher_id', type: 'uuid', nullable: true, })
   createdByTeacherId: string | null;
 
   @ManyToOne(() => DepartmentEntity, { nullable: true, onDelete: 'SET NULL', })
-  @JoinColumn({ name: 'department_id' })
+  @JoinColumn({ name: 'department_id', })
   department?: DepartmentEntity | null;
 
   @Column({ name: 'department_id', type: 'uuid', nullable: true, })

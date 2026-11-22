@@ -25,10 +25,10 @@ export class GroupTagsService {
 
   async getTagsDictionary(): Promise<ITagDictionaryItem[]> {
     const tags = await this.groupTagsRepository.find({
-      select: ['id', 'name',]
+      select: ['id', 'name',],
     });
     return tags.map(
-      (t) => this.groupTagsMapper.entityToDictionaryItem(t)
+      (t) => this.groupTagsMapper.entityToDictionaryItem(t),
     );
   }
 
@@ -43,11 +43,11 @@ export class GroupTagsService {
       tagsQb.andWhere('tags.name ILIKE :search', { search: `%${search}%`, });
     }
 
-    const [tagsData, total] = await tagsQb.getManyAndCount();
+    const [tagsData, total,] = await tagsQb.getManyAndCount();
 
     return {
       items: tagsData.map(
-        (t) => this.groupTagsMapper.entityToListItem(t)
+        (t) => this.groupTagsMapper.entityToListItem(t),
       ),
       meta: { count: total, },
     };
@@ -55,7 +55,7 @@ export class GroupTagsService {
 
   async getById(id: string) {
     const tag = await this.groupTagsRepository.findOneOrFail({
-      where: { id, }
+      where: { id, },
     });
     return this.groupTagsMapper.entityToItem(tag);
   }
@@ -63,7 +63,7 @@ export class GroupTagsService {
   async createTag(data: ICreateTagModel) {
     const newTag = this.groupTagsRepository.create({
       name: data.name,
-    },);
+    });
     const createdTag = await this.groupTagsRepository.save(newTag);
     return this.groupTagsMapper.entityToItem(createdTag);
   }
@@ -78,7 +78,7 @@ export class GroupTagsService {
 
   async deleteTag(tagId: string) {
     const studentGroupData = await this.groupTagsRepository.findOneOrFail({
-      where: { id: tagId, }
+      where: { id: tagId, },
     });
     const removedTag = await this.groupTagsRepository.remove(studentGroupData);
     return this.groupTagsMapper.entityToItem(removedTag);

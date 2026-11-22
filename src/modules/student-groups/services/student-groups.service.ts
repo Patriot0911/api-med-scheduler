@@ -23,15 +23,15 @@ export class StudentGroupsService {
 
   async getGroupsDictionary(): Promise<IGroupDictionaryItem[]> {
     const groups = await this.studentGroupsRepository.find({
-      select: ['id', 'name',]
+      select: ['id', 'name',],
     });
     return groups.map(
-      (g) => this.studentGroupsMapper.entityToDictionaryItem(g)
+      (g) => this.studentGroupsMapper.entityToDictionaryItem(g),
     );
   }
 
   async getAll(params: IGetStudentGroupsFiltersModel): Promise<IGenericListPayloadResponse<IStudentGroupListItemModel>> {
-    const { page, pageSize, search, tags } = params;
+    const { page, pageSize, search, tags, } = params;
     const groupsQb = this.studentGroupsRepository
       .createQueryBuilder('groups')
       .leftJoinAndSelect('groups.groupTags', 'tags')
@@ -51,11 +51,11 @@ export class StudentGroupsService {
       );
     }
 
-    const [groupsData, total] = await groupsQb.getManyAndCount();
+    const [groupsData, total,] = await groupsQb.getManyAndCount();
 
     return {
       items: groupsData.map(
-        (r) => this.studentGroupsMapper.entityToListItem(r)
+        (r) => this.studentGroupsMapper.entityToListItem(r),
       ),
       meta: { count: total, },
     };
@@ -75,7 +75,7 @@ export class StudentGroupsService {
       name: data.name,
       studyYear: data.studyYear,
       groupTags: tags,
-    },);
+    });
     const createdGroup = await this.studentGroupsRepository.save(newGroup);
     return this.studentGroupsMapper.entityToItem(createdGroup);
   }

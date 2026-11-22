@@ -7,9 +7,9 @@ description: Переносні правила зміни схеми в TypeORM 
 
 ## 0. Як запускати команди
 
-Користувач зазвичай тримає `npm run start:dev` (`nest start --watch`, порт 3001) у своєму терміналі. `npm run build` перезаписує `dist/` під watcher-ом і **вбиває dev-сервер**. Усі скрипти TypeORM (`migration:generate / run / revert`, `seed:run`) спершу роблять `npm run build`.
+Користувач зазвичай тримає `npm run start:dev` (`nest start --watch`, порт 3001) у своєму терміналі. `npm run build` перезаписує `dist/` під watcher-ом і може **вбити dev-сервер**, тому `build` — лише фінальна перевірка наприкінці задачі. Усі скрипти TypeORM (`migration:generate / run / revert`, `seed:run`) спершу роблять `npm run build`.
 
-- Перевірка типів — лише `npx tsc --noEmit -p tsconfig.json`.
+- Перевірка типів під час роботи — `npx tsc --noEmit -p tsconfig.json`; наприкінці — `npm run build`.
 - Міграцію **пиши руками** і не запускай сам: dev-сервер застосує її сам при рестарті (`migrationsRun: true`).
 - Якщо `dist/` справді потрібен (генерація, `migration:run`) — спершу попередь користувача й спитай, чи зупинено dev-сервер (`lsof -i :3001`).
 
@@ -115,4 +115,4 @@ DROP TYPE "public"."lessons_visibility_enum_old";
 - [ ] Ідемпотентність (`hasColumn` / `hasTable`, FK за колонкою).
 - [ ] Enum — перестворенням типу.
 - [ ] `down()` повноцінний.
-- [ ] Не запускав `build` / CLI під працюючим watch; типи — `tsc --noEmit`.
+- [ ] Не запускав CLI TypeORM без згоди; типи — `tsc --noEmit`, фінально — `npm run build`.

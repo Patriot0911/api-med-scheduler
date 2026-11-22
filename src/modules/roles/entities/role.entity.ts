@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, JoinTable } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToMany } from 'typeorm';
 import { Permission } from '../../../shared/models/permission.enum';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 
@@ -7,7 +7,7 @@ export class RoleEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true })
+  @Column({ unique: true, })
   name: string;
 
   @Column({ default: 0, })
