@@ -1,0 +1,6 @@
+(api_upstream) {
+	reverse_proxy api-blue:3000 {
+		lb_try_duration 5s
+		fail_duration 10s
+	}
+}

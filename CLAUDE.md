@@ -47,6 +47,8 @@ npm run seed:run                # build + створити роль Admin і к�
 
 `Dockerfile` (multi-stage, `node:22-alpine`, користувач `node`, tini) збирає образ із `APP_ENV=production`. `docker-entrypoint.sh` приймає команди: `serve` (за замовчуванням), `migrate`, `migrate:revert`, `migrate:show`, `seed`. Міграції в образі йдуть через `node node_modules/typeorm/cli.js` по скомпільованому `dist/`, без ts-node. HEALTHCHECK — `GET /api/health/ready`. `docker-compose.yml` — лише dev-Postgres.
 
+`deploy/` — продакшн-стек для VPS: `compose.infra.yml` (Caddy + Postgres), `compose.api.yml` / `compose.web.yml` (один колір blue / green кожного сервісу), `caddy/` (два домени, snippet-и живого кольору), шаблони `env/`. Опис і ручні операції — [deploy/README.md](deploy/README.md). У Docker-образ папка не потрапляє (`.dockerignore` — allowlist).
+
 ## Скіли й правила
 
 Процедури — `.claude/skills/`. Переносні (NestJS + TypeORM, без домену): `nest-module-anatomy`, `nest-dto-validation`, `nest-authorization`, `typeorm-migrations`. Доменні: `scheduler-lessons`, `scheduler-accounts`. Наскрізні: `api-contract-change` (синхронізація з фронтом), `api-rebuild-plan` (рішення дня нуль і порядок побудови).

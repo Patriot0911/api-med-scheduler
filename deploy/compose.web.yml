@@ -1,0 +1,26 @@
+# one colour of the web client; deploy.sh runs it as project med-web-<colour>
+name: med-web-${COLOR:?COLOR must be blue or green}
+
+services:
+  web:
+    image: ${WEB_IMAGE:-ghcr.io/patriot0911/front-med-scheduler}:${WEB_TAG:?WEB_TAG is required}
+    container_name: web-${COLOR}
+    restart: unless-stopped
+    environment:
+      HOSTNAME: 0.0.0.0
+      PORT: '3000'
+      NODE_OPTIONS: --max-old-space-size=320
+    networks: [edge,]
+    mem_limit: 448m
+    stop_grace_period: 10s
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://127.0.0.1:3000/healthz']
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+
+networks:
+  edge:
+    name: med-edge
+    external: true
