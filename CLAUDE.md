@@ -9,6 +9,16 @@ REST API розкладу занять медичного університет
 
 - **ШІ ніколи не комітить і не пушить** — навіть на прохання (тоді лише текст повідомлення коміту). Зміни лишаються в робочому дереві, коміти робить користувач. Деталі — `.claude/rules/git.md`.
 
+## Гілки й CI
+
+- `master` — розробка; `production` — те, що задеплоєно (деплой — лише з неї, через PR `master → production`). Гілку `staging` поки не плануємо.
+- `.github/workflows/ci.yml` запускається на PR у `master` / `production`, на push у `master` і вручну; CD викликатиме його через `workflow_call`. Jobs:
+  - `quality` — `npm run lint:check`, `tsc --noEmit`, `npm run build`;
+  - `database` — Postgres 16 у сервіс-контейнері: усі міграції на порожній БД, revert + run останньої, seed, старт застосунку й `GET /api/health/ready` (з `APP_ENV=production`);
+  - `docker` — збірка образу без push (кеш `type=gha`).
+- Перевірки розбіжностей entity ↔ міграції (`migration:generate --check`) в CI немає: міграції задають імена обмежень явно, а TypeORM генерує свої, тож перевірка завжди показує різницю лише в іменах.
+- Dependabot (`.github/dependabot.yml`) — npm, docker, github-actions, PR у `master`.
+
 ## Стек
 
 NestJS 11 · TypeORM 0.3 · PostgreSQL 16 · Passport JWT (access + refresh) · argon2 · class-validator / class-transformer · Swagger · dayjs.

@@ -1,0 +1,135 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [master, production]
+  push:
+    branches: [master]
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      docker:
+        description: Build the Docker image as a check
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  quality:
+    name: lint · typecheck · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint:check
+
+      - name: Typecheck
+        run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Build
+        run: npm run build
+
+  database:
+    name: migrations · seed · boot
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      APP_ENV: production
+      APP_PORT: '3000'
+      DB_HOST: localhost
+      DB_PORT: '5432'
+      DB_USER: ci
+      DB_PASSWORD: ci
+      DB_NAME: ci
+      DB_MIGRATIONS_RUN: 'FALSE'
+      JWT_ACCESS_SECRET: ci-access-secret
+      JWT_REFRESH_SECRET: ci-refresh-secret
+      CORS_ORIGINS: http://localhost
+      INIT_EMAIL: ci@example.com
+      INIT_PASSWORD: ci-password-123
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Apply all migrations to an empty database
+        run: node node_modules/typeorm/cli.js migration:run -d dist/database/data-source.js
+
+      - name: Revert and re-apply the latest migration
+        run: |
+          node node_modules/typeorm/cli.js migration:revert -d dist/database/data-source.js
+          node node_modules/typeorm/cli.js migration:run -d dist/database/data-source.js
+
+      - name: Seed
+        run: node dist/database/seeds/run-seeds.js
+
+      - name: Boot and health check
+        run: |
+          node dist/main.js > app.log 2>&1 &
+          for _ in $(seq 1 30); do
+            curl -fsS http://localhost:3000/api/health/ready && exit 0
+            sleep 1
+          done
+          cat app.log
+          exit 1
+
+  docker:
+    name: docker build
+    if: inputs.docker != false
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
