@@ -5,19 +5,9 @@ REST API розкладу занять медичного університет
 
 Доменна модель, правила доступу до занять і карта ендпоінтів — у [docs/domain.md](docs/domain.md). Читай її перед будь-якою зміною в `modules/lesson`, `modules/users` чи дозволах.
 
-## Git
+## Правила
 
-- **ШІ ніколи не комітить і не пушить** — навіть на прохання (тоді лише текст повідомлення коміту). Зміни лишаються в робочому дереві, коміти робить користувач. Деталі — `.claude/rules/git.md`.
-
-## Гілки й CI
-
-- `master` — розробка; `production` — те, що задеплоєно (деплой — лише з неї, через PR `master → production`). Гілку `staging` поки не плануємо.
-- `.github/workflows/ci.yml` запускається на PR у `master` / `production`, на push у `master` і вручну; CD викликатиме його через `workflow_call`. Jobs:
-  - `quality` — `npm run lint:check`, `tsc --noEmit`, `npm run build`;
-  - `database` — Postgres 16 у сервіс-контейнері: усі міграції на порожній БД, revert + run останньої, seed, старт застосунку й `GET /api/health/ready` (з `APP_ENV=production`);
-  - `docker` — збірка образу без push (кеш `type=gha`).
-- Перевірки розбіжностей entity ↔ міграції (`migration:generate --check`) в CI немає: міграції задають імена обмежень явно, а TypeORM генерує свої, тож перевірка завжди показує різницю лише в іменах.
-- Dependabot (`.github/dependabot.yml`) — npm, docker, github-actions, PR у `master`.
+Правила й тематичні довідки — у `.claude/rules/`, карта «контекст → файл» — [.claude/rules/index.md](.claude/rules/index.md). Тут вони не повторюються. Завжди діють `git`, `commands`, `operations`; решта підвантажується за шляхами файлів: конвенції коду й API, анатомія модуля, авторизація й нові дозволи, БД і міграції, `.env`, Docker, гілки й CI.
 
 ## Стек
 
@@ -41,18 +31,13 @@ npm run seed:run                # build + створити роль Admin і к�
 - Swagger: `http://localhost:<APP_PORT>/api/docs` (лише коли `APP_ENV !== 'production'`).
 - Тестів немає: jest-конфіг у `package.json` є, але `*.spec.ts` і скриптів `test` нема (README застарів).
 - Усі скрипти TypeORM працюють із **зібраним** `dist/` (`data-source.ts` дивиться в `dist/**/*.entity.js` і `dist/database/migrations/*.js`), тому кожен з них спершу робить `npm run build`.
-- **Користувач тримає `start:dev` запущеним; `build` перезаписує його `dist/`.** Під час роботи типи — `npx tsc --noEmit -p tsconfig.json`, `npm run build` — фінальна перевірка наприкінці задачі; скрипти TypeORM — лише за згодою; `lint` масово правлять увесь репозиторій. Див. `.claude/rules/commands.md`.
-
-## Docker
-
-`Dockerfile` (multi-stage, `node:22-alpine`, користувач `node`, tini) збирає образ із `APP_ENV=production`. `docker-entrypoint.sh` приймає команди: `serve` (за замовчуванням), `migrate`, `migrate:revert`, `migrate:show`, `seed`. Міграції в образі йдуть через `node node_modules/typeorm/cli.js` по скомпільованому `dist/`, без ts-node. HEALTHCHECK — `GET /api/health/ready`. `docker-compose.yml` — лише dev-Postgres.
-
-`deploy/` — продакшн-стек для VPS: `compose.infra.yml` (Caddy + Postgres), `compose.api.yml` / `compose.web.yml` (один колір blue / green кожного сервісу), `caddy/` (два домени, snippet-и живого кольору), шаблони `env/`. Опис і ручні операції — [deploy/README.md](deploy/README.md). У Docker-образ папка не потрапляє (`.dockerignore` — allowlist).
+- Що з цього й коли можна запускати — `.claude/rules/commands.md`.
 
 ## Скіли й правила
 
 Процедури — `.claude/skills/`. Переносні (NestJS + TypeORM, без домену): `nest-module-anatomy`, `nest-dto-validation`, `nest-authorization`, `typeorm-migrations`. Доменні: `scheduler-lessons`, `scheduler-accounts`. Наскрізні: `api-contract-change` (синхронізація з фронтом), `api-rebuild-plan` (рішення дня нуль і порядок побудови).
-Жорсткі обмеження — `.claude/rules/`: `git`, `commands` (завжди), `code-style`, `controllers`, `dto`, `persistence`, `domain` (за шляхами).
+Сабагенти — `.claude/agents/`: `devops-engineer` (інфраструктура, Docker, CI/CD, деплой, Postgres у проді; з кореневої папки доступний через symlink `../.claude/agents/`).
+Жорсткі обмеження — `.claude/rules/`, вхід — `index.md`.
 
 ## Структура
 
@@ -75,83 +60,6 @@ src/
   modules/
     auth/  users/  roles/  departments/  student-groups/  semester/  lesson/  dictionaries/  health/
 ```
-
-### Анатомія модуля
-
-Кожен доменний модуль має однакову розкладку — дотримуйся її для нових модулів:
-
-```
-modules/<name>/
-  <name>.module.ts
-  controllers/<name>.controller.ts
-  dto/<action>-<entity>-request.dto.ts     # класи з декораторами class-validator + @ApiProperty
-  models/<entity>-<kind>.model.ts          # інтерфейси I...Model, enum-и (*.enum.ts)
-  entities/<entity>.entity.ts              # *Entity
-  mappers/<name>.mapper.ts                 # @Injectable, entity → модель відповіді
-  services/<name>.service.ts
-```
-
-Інтерфейси в `models/` ↔ DTO-класи, що їх `implements`; сервіси працюють з інтерфейсами; mapper `entityToItem / ListItem / DictionaryItem`; контролер не повертає entity; довідники — у `DictionariesModule`. Повністю — скіл `nest-module-anatomy`.
-
-## Конвенції API
-
-- **Префікс** `api/` пишеться вручну в `@Controller('api/<resource>')`, глобального префікса немає.
-- **Обгортка відповіді.** `ResponseInterceptor` загортає все в `{ status: true, data }`. Помилки: `{ status: false, message }`, де `message` — рядок **або масив рядків** (помилки class-validator). Не загортай відповідь вручну.
-- **Списки**: `{ items, meta: { count } }` (`IGenericListPayloadResponse<T>`). Пагінація: query `page` (від 1) і `pageSize` (0–100) з `@Type(() => Number)`; пошук `search` через `ILIKE '%…%'`. Масиви в query приймаються як повторювані ключі; для одиночного значення використовуй `@Transform(toArray)` (див. `get-users-request.dto.ts`).
-- **CRUD-повернення** (історично склалось, не уніфікуй без потреби): `POST` → створений item, `PUT` → здебільшого `boolean` (`!!result.affected`), але users / profiles / lessons повертають оновлений item; `DELETE` → видалений item.
-- **ValidationPipe** глобальний з `transform: true, whitelist: true`: поля без декораторів class-validator **мовчки відкидаються**. Правила DTO — скіл `nest-dto-validation`.
-- **Поточний користувач**: новий код — `@CurrentUser() { sub }: IAccessTokenPayload`; старий код читає `request.user` через `@Req()`. `sub` — це `users.id`, **не** id профілю викладача/студента.
-
-### Авторизація
-
-Стандартний набір декораторів на захищеному ендпоінті:
-
-```ts
-@Get()
-@ApiBearerAuth()
-@UseGuards(JwtAccessGuard, PermissionsGuard)
-@Permissions(Permission.READ_USERS, Permission.MANAGE_USERS)
-```
-
-Авторизація має два рівні:
-
-1. **Доступ до ендпоінту** — `@Permissions` + `PermissionsGuard`. Пропускає, якщо є **хоча б один** з перелічених дозволів (OR). **`ADMIN` проходить завжди**, тож у списках його не перелічують. `@Permissions(Permission.ADMIN)` пишуть лише для ендпоінтів «тільки для адміна» (семестри).
-2. **Дія над конкретним користувачем або роллю** — ієрархія ролей в `AuthorityService` (`modules/roles/services/authority.service.ts`). Будь-яка зміна чужого акаунта, профілів, ролей чи reset-токена проходить через нього. Формула описана в [docs/domain.md](docs/domain.md#ієрархія-ролей). Свої перевірки «чи може A змінити B» поза цим сервісом не пиши.
-
-- Guard читає дозволи з access-токена (агрегуються з ролей при логіні / refresh), тож після зміни ролей вони оновлюються лише після refresh. `AuthorityService` завжди читає ролі з БД.
-- Відповіді users і roles містять `canManage`: чи може поточний користувач керувати цим записом. Фронт має покладатися на цей прапорець, а не повторювати формулу.
-- `OptionalJwtAccessGuard` — для публічних ендпоінтів (`/lessons/list`): без заголовка `Authorization` пускає анонімно, з простроченим токеном дає 401.
-- Заняття мають окрему модель: у домені викладачів (`/lessons*`) права дають участь у занятті та завідування кафедрою, без дозволів (`LessonAccessService`). Адмін-панель (`/admin/lessons*`) — звичайні дозволи `read_lessons` / `manage_lessons`. Деталі — у [docs/domain.md](docs/domain.md#заняття--правила-доступу).
-- `@Feature('register') + FeatureGuard` вмикає ендпоінт через env (`FEATURE_REGISTER='TRUE'`).
-
-### Додавання нового дозволу
-
-Чотири місця: enum, міграція з перестворенням `roles_permissions_enum` (не `ADD VALUE`, коміт `0908603`), фронт `permission.ts` і `permissions.config.ts`. Покроково — скіл `scheduler-accounts`.
-
-## База даних і міграції
-
-- **`synchronize: true` поза production** (`app.module.ts`) і `migrationsRun: true`: dev-сервер сам підганяє схему й застосовує міграції. Тому зміна entity без міграції «працює» локально, але ламає production, `migration:generate` по dev-БД може дати порожній diff, а міграції мають бути ідемпотентними.
-- Змішані конвенції колонок: нові — snake_case, старі `users` / `roles` / `semesters` — camelCase (у raw SQL у лапках). Останні міграції — ручна серія таймстемпів `17858000000NN`.
-- Правила entity й міграцій — `.claude/rules/persistence.md`, процедура — скіл `typeorm-migrations`.
-
-## Стиль коду
-
-`.claude/rules/code-style.md`: одинарні лапки й кома після останнього елемента навіть в однорядкових об'єктах, абсолютні імпорти між модулями, явні `Promise<IModel>`, без `any`, **коментарі лише ситуативно** (нуль за замовчуванням, рясні коментарі в коді — не зразок).
-
-Форматування перевіряє ESLint (`@stylistic` у `eslint.config.mjs`): одинарні лапки, кома після останнього елемента в об'єктах і масивах навіть в однорядкових (в імпортах, параметрах і викликах — лише в багаторядкових), крапка з комою, відступ 2. Prettier у проєкті немає: він не вміє коми в однорядкових об'єктах. Увесь `src` проходить `npm run lint:check` без помилок — CI блокує будь-яке порушення.
-
-## Конфігурація (.env)
-
-| Змінна | Призначення |
-|---|---|
-| `APP_ENV`, `APP_PORT` | `production` вимикає Swagger і `synchronize` (Docker-образ ставить `production` сам) |
-| `CORS_ORIGINS` | дозволені origin фронту через кому (`https://medscheduler.com`); у production обов'язкова, поза ним порожня = будь-який origin. Cookies не використовуються, `credentials` вимкнено |
-| `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | БД (і для `docker-compose.yml`, і для застосунку) |
-| `DB_MIGRATIONS_RUN` | `'FALSE'` вимикає `migrationsRun` при старті; у production міграції запускає окремий контейнер (`docker run <image> migrate`) |
-| `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` | секрети токенів; при `APP_ENV=production` обов'язкові (застосунок не стартує без них), у dev — дефолтні рядки |
-| `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `PASSWORD_RESET_TTL` | тривалість: секунди або число з `s` / `m` / `h` / `d` (`15m`, `7d`), див. `config/duration.ts`. Некоректне значення зупиняє старт. Дефолти: 900 / 604800 / 86400 |
-| `FEATURE_REGISTER` | `'TRUE'` вмикає `POST /api/auth/register` |
-| `INIT_EMAIL`, `INIT_PASSWORD` | креди адміна для `seed:run` |
 
 ## Відомі пастки
 

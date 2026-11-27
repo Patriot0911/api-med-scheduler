@@ -4,12 +4,12 @@ paths:
   - "src/modules/**/models/**"
 ---
 
-# DTO і моделі
+# DTOs and models
 
-- Кожне поле DTO має хоча б один декоратор class-validator (`@IsOptional()` рахується): `whitelist: true` мовчки викидає поля без них.
-- DTO `implements` інтерфейс з `models/`; create = edit → `extends`; похідні — `OmitType` / `PickType` / `PartialType` з `@nestjs/swagger`.
-- Query: числа `@Type(() => Number)`, булеві `@Transform(toBoolean)`, масиви `@Transform(toArray)`; дати `@Type(() => Date) @IsDate()`; вкладені `@ValidateNested() @Type(() => Dto)`.
-- Масиви id — `@IsUUID('all', { each: true, })`, з `ArrayUnique` / межами, де доречно.
-- Ліміти, що захищають сервер, — декораторами в DTO; їх зміна — зміна контракту (фронт віддзеркалює їх у zod).
-- Моделі відповідей: `I<Entity>ItemModel`, `I<Entity>ListItemModel`, `I<Entity>DictionaryItem`; nullable — `| null`; прапорці рішень (`canEdit`, `canManage`) — у моделі.
-- `description` у `@ApiProperty` — лише для неочевидної семантики.
+- Every DTO field has at least one class-validator decorator (`@IsOptional()` counts): `whitelist: true` silently drops fields without them.
+- A DTO `implements` an interface from `models/`; create = edit → `extends`; derived DTOs — `OmitType` / `PickType` / `PartialType` from `@nestjs/swagger`.
+- Query: numbers `@Type(() => Number)`, booleans `@Transform(toBoolean)`, arrays `@Transform(toArray)`; dates `@Type(() => Date) @IsDate()`; nested `@ValidateNested() @Type(() => Dto)`.
+- Id arrays — `@IsUUID('all', { each: true, })`, with `ArrayUnique` / size bounds where appropriate.
+- Limits that protect the server are DTO decorators; changing them is a contract change (the frontend mirrors them in zod).
+- Response models: `I<Entity>ItemModel`, `I<Entity>ListItemModel`, `I<Entity>DictionaryItem`; nullable — `| null`; decision flags (`canEdit`, `canManage`) live in the model.
+- `description` in `@ApiProperty` — only for non-obvious semantics.
