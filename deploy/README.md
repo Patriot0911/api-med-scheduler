@@ -1,67 +1,59 @@
-# Деплой на VPS
+# Деплой на сервер
 
-Один сервер: Caddy (TLS, два домени) + Postgres + API і web, кожен у двох кольорах (blue / green) для перемикання без простою. Кольори сервісів незалежні: деплой фронту не чіпає API, і навпаки.
+Один сервер, Docker Compose, по одному інстансу кожного сервісу. Кожен репозиторій має власний compose-проєкт у своїй папці на сервері; деплоять їх незалежні workflow `deploy.yml`.
 
 ```
-medscheduler.com      ─► caddy ─► web-{blue|green}:3000
-api.medscheduler.com  ─► caddy ─► api-{blue|green}:3000 ─► postgres:5432
+reverse proxy на хості (TLS, домени)
+  ├─ сайт      ─► 127.0.0.1:4000 ─► med-web      (front-med-scheduler, /app/med-scheduler/front)
+  └─ API       ─► 127.0.0.1:3000 ─► med-api ─► med-postgres   (цей репозиторій, /app/med-scheduler/api)
 ```
+
+Браузер ходить в API напряму за його доменом (адреса вшита в образ фронту), тож спільна Docker-мережа між api і web не потрібна. Postgres доступний лише всередині проєкту `med-api` і на `127.0.0.1` хоста (бекапи, SSH-тунель).
 
 ## Файли
 
-| Файл | Що це |
-|---|---|
-| `compose.infra.yml` | проєкт `med-infra`: `caddy` і `postgres`, мережі `med-edge` (Caddy ↔ застосунки) і `med-backend` (internal, застосунки ↔ БД). Піднімається один раз, деплой його не чіпає |
-| `compose.api.yml` | один колір API, проєкт `med-api-<колір>`, контейнер `api-<колір>`. Змінні: `COLOR`, `API_TAG`, `API_IMAGE` (за замовчуванням GHCR) |
-| `compose.web.yml` | один колір web, проєкт `med-web-<колір>`, контейнер `web-<колір>`. Змінні: `COLOR`, `WEB_TAG`, `WEB_IMAGE` |
-| `caddy/Caddyfile` | два сайти з `WEB_ADDRESS` / `API_ADDRESS`; `/api/docs` закритий |
-| `caddy/active/{api,web}.caddy` | snippet-и `(api_upstream)` / `(web_upstream)` — живий колір кожного сервісу. Перемикання = переписати файл і `caddy reload` |
-| `env/*.env.example` | шаблони `caddy.env`, `postgres.env`, `api.env`; справжні `env/*.env` — лише на сервері (chmod 600, у git не потрапляють) |
-| `docker/daemon.json` | `/etc/docker/daemon.json`: ротація логів, `live-restore` |
+| Файл | Що це | На сервері |
+|---|---|---|
+| `docker-compose.yml` | `postgres` + одноразовий `migrate` + `api`; `api` стартує лише після успішного `migrate` | `/app/med-scheduler/api/docker-compose.yml` |
+| `.env.example` | шаблон єдиного `.env` (БД, JWT, CORS, порти, тег образу) | `/app/med-scheduler/api/.env`, `chmod 600` |
+| `docker/daemon.json` | ротація логів Docker, `live-restore` | `/etc/docker/daemon.json` |
 
-Образ web збирається під домен API: `--build-arg NEXT_PUBLIC_API_URL=https://api.medscheduler.com/api`. API обов'язково з `CORS_ORIGINS=https://medscheduler.com`.
+Compose фронту — `front-med-scheduler/deploy/docker-compose.yml` → `/app/med-scheduler/front/`.
+
+## Як іде деплой
+
+Push (merge PR) у `production` → `.github/workflows/deploy.yml`:
+
+1. `ci` — той самий `ci.yml` (lint, typecheck, build, міграції на порожній БД); без нього далі не йде.
+2. `build · push` — образ у GHCR з тегами `latest` і `sha-<short>`.
+3. `deploy to server` — SSH на сервер: `docker compose pull` → `up -d` (спершу `migrate`, потім перестворюється `api`) → чекає `healthy` до 90 с (інакше друкує логи й падає) → `docker image prune -f`.
+
+Якщо `migrate` падає, `up -d` завершується помилкою, а `api` лишається на старому образі. Під час перестворення контейнера API кілька секунд недоступний — це прийнятно.
+
+## Одноразове налаштування
+
+На сервері:
+
+```bash
+mkdir -p /app/med-scheduler/api /app/med-scheduler/front
+# скопіювати сюди docker-compose.yml (і .env з .env.example) з цього репо; фронт — свій compose у /front
+docker login ghcr.io -u <github-user>      # PAT з read:packages, якщо пакети приватні
+cd /app/med-scheduler/api && docker compose up -d
+docker compose run --rm api seed           # лише на порожній БД; потім прибрати INIT_* з .env
+```
+
+У GitHub (обидва репо), environment `production`: secrets `SSH_HOST`, `SSH_USER`, `SSH_KEY`. Фронт додатково — repository variable `NEXT_PUBLIC_API_URL` (`https://<домен API>/api`).
+
+`docker-compose.yml` на сервер workflow не копіює: змінив його в репо — онови вручну.
 
 ## Ручні операції
 
-Усе — з папки, де лежать ці файли на сервері.
-
 ```bash
-# інфраструктура (один раз)
-docker compose -f compose.infra.yml up -d
+cd /app/med-scheduler/api
+docker compose ps
+docker compose logs -f api
+docker compose run --rm api migrate:show
 
-# міграції — окремим контейнером з НОВОГО образу, до перемикання трафіку
-COLOR=green API_TAG=sha-abc1234 docker compose -f compose.api.yml run --rm api migrate
-# seed (лише на порожній БД, потребує INIT_EMAIL / INIT_PASSWORD в env/api.env)
-COLOR=green API_TAG=sha-abc1234 docker compose -f compose.api.yml run --rm api seed
-
-# запустити колір і дочекатися healthy
-COLOR=green API_TAG=sha-abc1234 docker compose -f compose.api.yml up -d
-docker inspect -f '{{.State.Health.Status}}' api-green
-
-# перемкнути трафік (атомарно: тимчасовий файл + mv), перевірити й перезавантажити Caddy
-sed 's/api-blue/api-green/' caddy/active/api.caddy > caddy/active/api.caddy.tmp && mv caddy/active/api.caddy.tmp caddy/active/api.caddy
-docker exec caddy caddy validate --config /etc/caddy/Caddyfile
-docker exec caddy caddy reload --config /etc/caddy/Caddyfile
-
-# старий колір зупинити, але не видаляти — це ціль відкату
-COLOR=blue API_TAG=<попередній тег> docker compose -f compose.api.yml stop
+# відкат на попередній образ (лише код — схема лишається новою, тому міграції expand / contract)
+API_TAG=sha-abc1234 docker compose up -d api
 ```
-
-Відкат — те саме у зворотний бік: `start` зупиненого кольору → healthy → переписати snippet → `reload`. Відкочується лише код: міграції мають бути зворотно сумісними (expand / contract), бо старий колір працює з новою схемою.
-
-Ці кроки автоматизує `deploy.sh` (буде додано разом із CD).
-
-## Локальна перевірка стеку
-
-Без справжніх доменів: адреси з `http://` (Caddy не просить сертифікат), `*.localhost` резолвиться в 127.0.0.1.
-
-```bash
-# env/caddy.env: WEB_ADDRESS=http://web.localhost  API_ADDRESS=http://api.localhost
-# env/api.env:   CORS_ORIGINS=http://web.localhost:8080
-docker build -t local/api:t1 ..
-docker build --build-arg NEXT_PUBLIC_API_URL=http://api.localhost:8080/api -t local/web:t1 ../../front-med-scheduler
-export HTTP_PORT=8080 HTTPS_PORT=8443 API_IMAGE=local/api WEB_IMAGE=local/web
-# далі — ті самі команди з COLOR=blue API_TAG=t1 / WEB_TAG=t1; сайт — http://web.localhost:8080
-```
-
-Прибрати: `down` для кожного кольору, потім `docker compose -f compose.infra.yml down -v` (`-v` видаляє БД і сертифікати).

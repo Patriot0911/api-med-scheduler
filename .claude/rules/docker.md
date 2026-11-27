@@ -13,4 +13,4 @@ paths:
 - `docker-entrypoint.sh` accepts: `serve` (default), `migrate`, `migrate:revert`, `migrate:show`, `seed`. Migrations in the image run via `node node_modules/typeorm/cli.js` over the compiled `dist/`, no ts-node.
 - HEALTHCHECK — `GET /api/health/ready` (`SELECT 1` against the DB); liveness — `GET /api/health`.
 - `docker-compose.yml` — dev Postgres only.
-- `deploy/` — an earlier production setup (Caddy, blue / green) that the current plan does not use; it is not part of the image. Extend or rework it only after agreeing with the user.
+- `deploy/` — server-side files, not part of the image: `docker-compose.yml` (postgres + one-shot `migrate` + `api`, ports on `127.0.0.1` behind the host reverse proxy), `.env.example` (single server `.env`), `docker/daemon.json`. Flow and manual operations — `deploy/README.md`. Single instance per service; no Caddy, no blue / green.
